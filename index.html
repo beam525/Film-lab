@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e0c0b">
+<title>ฟิลเตอร์กล้องฟิล์ม</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@500;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Camera body: near-black with warm grain, safelight red shutter accent, LCD green-grey frame counter, film-edge orange codes.
+     Layout: one phone-width column — tool bar, camera header, viewfinder, camera carousel, shutter row. */
+  --bg:#0e0c0b;
+  --surface:#1b1816;
+  --line:#34302d;
+  --text:#efe8e1;
+  --muted:#a1968e;
+  --accent:#e5482e;
+  --edge:#e9a24b;
+  --lcd:#c9d6a3;
+  --display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg)}
+body{color:var(--text);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow:hidden}
+button{font:inherit;color:inherit}
+[hidden]{display:none !important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.vis{display:block;border-radius:4px;overflow:hidden;flex:none}
+.vis svg,.vis img{display:block;width:100%;height:100%;object-fit:cover}
+
+.app{height:100%;max-width:540px;margin:0 auto;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-columns:minmax(0,1fr);border-left:1px solid #1d1a18;border-right:1px solid #1d1a18;user-select:none;-webkit-user-select:none}
+
+/* tool bar */
+.tools{display:flex;justify-content:space-between;gap:2px;padding:calc(var(--safe-t) + 6px) 8px 4px}
+.tb{display:grid;justify-items:center;gap:1px;min-width:48px;min-height:48px;padding:5px 4px;border:0;background:none;border-radius:8px;cursor:pointer;color:#cfc6be;font-size:10.5px;line-height:1.1}
+.tb svg{width:22px;height:22px}
+.tb[aria-pressed="true"]{color:#ffd166}
+.tb:active{background:rgba(255,255,255,.08)}
+
+/* camera header */
+.head{display:flex;align-items:center;gap:10px;padding:4px 14px 8px}
+.head .vis{width:52px;height:36px}
+.head-txt{min-width:0;flex:1;display:grid;gap:3px}
+.head-txt b{font:600 17px/1.1 var(--display);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filmchip{justify-self:stretch;justify-content:flex-start;min-width:0;overflow:hidden;display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:3px 9px 3px 4px;border-radius:14px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:12.5px;min-height:30px}
+.filmchip .vis{width:22px;height:22px}
+.filmchip span.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.filmchip svg.car{width:10px;height:10px;flex:none;opacity:.7}
+.lcd{flex:none;display:grid;justify-items:end;padding:5px 9px;border-radius:5px;background:#151a12;border:1px solid #2b3324;box-shadow:inset 0 1px 6px rgba(0,0,0,.6)}
+.lcd b{font:700 20px/1 var(--mono);color:var(--lcd);letter-spacing:.04em;text-shadow:0 0 6px rgba(201,214,163,.35);font-variant-numeric:tabular-nums}
+.lcd small{font:500 9.5px/1.2 var(--mono);color:#7f8a66;letter-spacing:.06em}
+
+/* viewfinder */
+.finder{position:relative;display:grid;place-items:center;min-height:0;margin:0 10px;border-radius:10px;background:#050404;overflow:hidden;box-shadow:inset 0 0 0 1px #24201e}
+.vf-wrap{position:relative;display:grid;place-items:center;width:100%;height:100%;min-height:0}
+#vf{display:block;max-width:100%;max-height:100%}
+#overlay{position:absolute;pointer-events:none}
+.curtain{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.curtain.snap{animation:snap .22s ease-out}
+@keyframes snap{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+.vf-note{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;pointer-events:none}
+.pill{pointer-events:auto;padding:6px 10px;border-radius:14px;background:rgba(0,0,0,.62);font-size:12px;color:#ddd;border:0;cursor:pointer}
+.pill.live{background:var(--accent);color:#fff;font-weight:600}
+.countdown{position:absolute;inset:0;display:grid;place-items:center;font:700 96px/1 var(--display);color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.6);pointer-events:none}
+.busy{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,4,4,.55);font:600 14px var(--display);letter-spacing:.06em;color:#ff8a70}
+#video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.print{position:absolute;inset:0;display:grid;place-items:start center;padding-top:6%;background:rgba(0,0,0,.35);cursor:pointer}
+.print img{max-width:72%;max-height:86%;box-shadow:0 18px 40px rgba(0,0,0,.6);transform:translateY(-110%)}
+.print.go img{animation:eject 1.3s cubic-bezier(.2,.7,.2,1) forwards,develop 6s ease-out forwards}
+.print.instax.go img{animation:eject 1.1s cubic-bezier(.2,.7,.2,1) forwards,developX 4s ease-out forwards}
+@keyframes eject{to{transform:translateY(0)}}
+@keyframes develop{0%{filter:brightness(.28) saturate(0) sepia(.6) hue-rotate(150deg)}35%{filter:brightness(.6) saturate(.3) sepia(.3) hue-rotate(120deg)}100%{filter:none}}
+@keyframes developX{0%{filter:brightness(.12) saturate(0)}50%{filter:brightness(.6) saturate(.5)}100%{filter:none}}
+.flyer{position:fixed;z-index:70;pointer-events:none;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.5);transition:transform .55s cubic-bezier(.4,.1,.2,1),opacity .55s}
+
+/* carousel */
+.presets{display:flex;gap:8px;overflow-x:auto;padding:10px 14px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.presets::-webkit-scrollbar{display:none}
+.preset{flex:none;width:80px;display:grid;justify-items:center;gap:4px;padding:7px 4px 6px;border-radius:9px;border:1px solid transparent;background:none;cursor:pointer;scroll-snap-align:center;text-align:center}
+.preset .vis{width:62px;height:42px}
+.preset .n{font-size:11px;line-height:1.2;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.4em}
+.preset[aria-selected="true"]{border-color:var(--accent);background:#2a1c18}
+.preset[aria-selected="true"] .n{color:var(--text)}
+
+/* shutter row */
+.controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:6px 26px calc(var(--safe-b) + 14px)}
+.gal{position:relative;justify-self:start;width:54px;height:54px;border-radius:8px;border:2px solid #4a433f;background:#1d1a18 center/cover;cursor:pointer;padding:0;overflow:visible}
+.gal .vis{width:100%;height:100%}
+.gal .badge{position:absolute;top:-7px;right:-9px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--accent);color:#fff;font:600 11px/20px var(--mono)}
+.shutter{width:80px;height:80px;border-radius:50%;border:4px solid #f3eee8;background:transparent;padding:5px;cursor:pointer}
+.shutter span{display:block;width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ff7a5c,var(--accent) 60%,#a92a17)}
+.shutter:active span{transform:scale(.92)}
+.side{justify-self:end;width:54px;height:54px;border-radius:50%;border:0;background:#1f1c1a;display:grid;place-items:center;cursor:pointer}
+.side svg{width:24px;height:24px}
+
+/* sheets & screens */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-width:540px;margin:0 auto;max-height:82svh;overflow-y:auto;background:var(--surface);border-radius:14px 14px 0 0;border-top:1px solid var(--line);padding:8px 16px calc(var(--safe-b) + 20px)}
+.grab{width:40px;height:4px;border-radius:2px;background:#4a433f;margin:4px auto 10px}
+.sheet h2{margin:0 0 12px;font:600 18px var(--display);display:flex;align-items:center;gap:10px}
+.sheet h2 .x{margin-left:auto}
+.sheet h3{margin:18px 0 8px;font:600 11.5px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.iconbtn{width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.1);display:grid;place-items:center;cursor:pointer;flex:none;color:#fff}
+.iconbtn svg{width:18px;height:18px}
+.brands{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.brands::-webkit-scrollbar{display:none}
+.brand{flex:none;display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:5px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:13.5px;min-height:36px;white-space:nowrap}
+.brand small{color:var(--muted);font:500 11px var(--mono)}
+.brand[aria-selected="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.dot{width:9px;height:9px;border-radius:2px;flex:none}
+.films{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px;margin-top:12px}
+.film{display:grid;gap:4px;align-content:start;padding:0;background:none;border:0;color:var(--muted);cursor:pointer;text-align:left}
+.film .pv{position:relative;display:block}
+.film canvas{width:100%;aspect-ratio:1;display:block;border-radius:3px;outline:2px solid transparent;outline-offset:2px;background:#000}
+.film .badge{position:absolute;left:4px;bottom:4px;width:30px;height:30px;border-radius:6px;background:rgba(12,10,9,.85);padding:2px}
+.film[aria-pressed="true"] canvas{outline-color:var(--accent)}
+.film[aria-pressed="true"] .fname{color:var(--text)}
+.fname{font-size:12.5px;line-height:1.25}
+.edge{font:500 10px/1 var(--mono);color:var(--edge)}
+.desc{margin:6px 0 0;font-size:13.5px;color:#d2c9c1}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 14px;border-radius:7px;border:1px solid var(--line);background:#24201e;font-weight:500;cursor:pointer;min-height:42px;font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{min-height:34px;padding:5px 10px;font-size:12.5px}
+.btn svg{width:18px;height:18px}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;margin-bottom:10px}
+.ctl label{font-size:14px}
+.ctl output{font:500 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.ctl input{grid-column:1/-1;width:100%;accent-color:var(--accent);margin:0;height:30px}
+.toggles{display:flex;gap:8px;flex-wrap:wrap}
+.tog{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:6px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:13.5px;min-height:40px}
+.tog::before{content:"";width:14px;height:14px;border-radius:3px;border:1.5px solid var(--muted);flex:none}
+.tog[aria-pressed="true"]{border-color:var(--accent)}
+.tog[aria-pressed="true"]::before{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--surface)}
+.segbtns{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.segbtns button{border:0;background:none;padding:7px 14px;cursor:pointer;font-size:13.5px;min-height:38px}
+.segbtns button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.item-photo{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+.item-photo .vis{width:54px;height:40px}
+.item-photo .t{flex:1;min-width:0;font-size:13px}
+
+.screen{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr);max-width:540px;margin:0 auto}
+.scr-top{display:flex;align-items:center;gap:10px;padding:calc(var(--safe-t) + 8px) 12px 8px;border-bottom:1px solid #1f1c1a}
+.scr-top b{font:600 17px var(--display);flex:1}
+.scr-top small{color:var(--muted);font:500 12px var(--mono)}
+.scr-body{overflow-y:auto;padding:12px 12px calc(var(--safe-b) + 20px)}
+.rollcard{display:flex;gap:12px;align-items:center;padding:12px;border-radius:8px;border:1px dashed #5a4a3c;background:#1a1512;margin-bottom:12px}
+.rollcard .vis{width:52px;height:52px}
+.rollcard .t{flex:1;font-size:13.5px}
+.rollcard .t b{display:block;font:600 15px var(--display)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.grid button{padding:0;border:0;background:#111;aspect-ratio:1;cursor:pointer;overflow:hidden}
+.grid img{width:100%;height:100%;object-fit:cover;display:block}
+.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+.viewer{position:fixed;inset:0;z-index:60;background:#000;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.vw-stage{overflow:auto;display:grid;place-items:center;min-height:0}
+.vw-stage img{max-width:100%;max-height:100%;display:block;-webkit-touch-callout:default;user-select:auto;-webkit-user-select:auto}
+.vw-stage.zoom{place-items:start}
+.vw-stage.zoom img{max-width:none;max-height:none}
+.vw-meta{display:flex;align-items:center;gap:8px;font-size:13px;color:#cfc6be;min-width:0;flex:1}
+.vw-meta .vis{width:30px;height:22px}
+.vw-meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vw-bottom{display:flex;gap:8px;justify-content:center;align-items:center;padding:10px 12px calc(var(--safe-b) + 14px)}
+.vw-bottom .btn{flex:1;max-width:160px}
+.devel{position:fixed;inset:0;z-index:80;background:#120606;display:grid;place-items:center;text-align:center;color:#ff8a70;font:600 16px var(--display);letter-spacing:.08em}
+.devel small{display:block;margin-top:8px;font:500 12px var(--mono);color:#a35a4a;letter-spacing:.04em}
+.toast{position:fixed;left:50%;top:calc(var(--safe-t) + 70px);transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 14px;border-radius:7px;font-size:13.5px;font-weight:500;z-index:90;max-width:calc(100% - 32px);text-align:center}
+@media (prefers-reduced-motion:reduce){
+  .curtain.snap,.print.go img,.print.instax.go img{animation:none;transform:none}
+  .flyer{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="tools">
+    <button class="tb" id="bFlash" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2 5 14h6l-1 8 8-12h-6z"/></svg><span id="flashLbl">แฟลช</span></button>
+    <button class="tb" id="bTimer" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg><span id="timerLbl">ตั้งเวลา</span></button>
+    <button class="tb" id="bAspect" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="1"/><path d="M7 6v12M17 6v12" stroke-dasharray="2 2"/></svg><span id="aspectLbl">เต็ม</span></button>
+    <button class="tb" id="bDate" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 15h2M12 15h2M16 15h1" stroke-linecap="round"/></svg><span>วันที่</span></button>
+    <button class="tb" id="bImport" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg><span>นำเข้า</span></button>
+    <button class="tb" id="bSettings" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>ปรับแต่ง</span></button>
+  </div>
+
+  <div class="head">
+    <span class="vis" id="headCamVis"></span>
+    <div class="head-txt">
+      <b id="headCam"></b>
+      <button class="filmchip" id="filmChip" type="button" aria-label="เปลี่ยนฟิล์ม"><span class="vis" id="headFilmVis"></span><span class="t" id="headFilm"></span><svg class="car" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+    </div>
+    <div class="lcd" aria-label="ตัวนับเฟรม"><b id="lcdNum">01</b><small id="lcdSub">/36 · ม้วน 1</small></div>
+  </div>
+
+  <div class="finder" id="finder">
+    <div class="vf-wrap" id="vfWrap">
+      <canvas id="vf" width="10" height="10"></canvas>
+      <svg id="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="curtain" id="curtain"></div>
+    <div class="vf-note"><span class="pill" id="sampleNote" hidden>รูปตัวอย่าง · กดชัตเตอร์เพื่อถ่ายจริง</span><button class="pill live" id="liveStart" type="button" hidden>แตะเพื่อเปิดกล้องสด</button><span class="pill" id="liveMsg" hidden></span></div>
+    <div class="countdown" id="countdown" hidden></div>
+    <div class="busy" id="busy" hidden>กำลังล้างฟิล์ม…</div>
+    <div class="print" id="print" hidden><img id="printImg" alt="รูปอินสแตนท์ที่เพิ่งถ่าย"></div>
+    <video id="video" playsinline muted autoplay></video>
+  </div>
+
+  <div class="presets" id="presets" role="listbox" aria-label="เลือกกล้อง"></div>
+
+  <div class="controls">
+    <button class="gal" id="galBtn" type="button" aria-label="อัลบั้ม"><span class="vis" id="galVis"></span><span class="badge" id="galBadge" hidden></span></button>
+    <button class="shutter" id="shutter" type="button" aria-label="ถ่ายรูป"><span></span></button>
+    <button class="side" id="flipBtn" type="button" aria-label="สลับกล้องหน้า-หลัง"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg></button>
+  </div>
+</div>
+
+<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+<input type="file" id="fileIn" accept="image/*" multiple hidden>
+<input type="file" id="itemIn" accept="image/*" hidden>
+
+<!-- film sheet -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheetFilm" hidden role="dialog" aria-label="เลือกฟิล์ม">
+  <div class="grab"></div>
+  <h2><span class="vis" id="sfFilmVis" style="width:30px;height:30px"></span><span id="sfTitle">เลือกฟิล์ม</span><button class="iconbtn x" data-close type="button" aria-label="ปิด"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></h2>
+  <p class="desc" id="sfDesc"></p>
+  <div class="row" style="margin:10px 0 12px"><button class="btn sm" id="sigBtn" type="button"></button></div>
+  <div class="brands" id="brands" role="tablist" aria-label="ยี่ห้อฟิล์ม"></div>
+  <p class="note" id="fitNote"></p>
+  <div class="films" id="films"></div>
+</div>
+
+<!-- settings sheet -->
+<div class="sheet" id="sheetSet" hidden role="dialog" aria-label="ปรับแต่ง">
+  <div class="grab"></div>
+  <h2>ปรับแต่ง<button class="iconbtn x" data-close type="button" aria-label="ปิด"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></h2>
+  <div class="ctl"><label for="amt">ความเข้มของฟิล์มและกล้อง</label><output id="amtOut">100%</output><input type="range" id="amt" min="0" max="100" value="100"></div>
+  <div class="ctl"><label for="grn">เกรนฟิล์ม</label><output id="grnOut">100%</output><input type="range" id="grn" min="0" max="200" value="100"></div>
+  <div class="ctl"><label for="expo">ชดเชยแสง</label><output id="expoOut">0 สต็อป</output><input type="range" id="expo" min="-2" max="2" step="0.25" value="0"></div>
+  <h3>เอฟเฟกต์ (สุ่มใหม่ทุกช็อต)</h3>
+  <div class="toggles">
+    <button class="tog" data-key="vig" type="button">ขอบมืดของเลนส์</button>
+    <button class="tog" data-key="leak" type="button">แสงรั่ว</button>
+    <button class="tog" data-key="dust" type="button">ฝุ่นและรอยสแกน</button>
+    <button class="tog" data-key="expired" type="button">ฟิล์มหมดอายุ</button>
+    <button class="tog" data-key="frame" type="button">กรอบฟิล์ม</button>
+  </div>
+  <p class="note">แสงรั่วมีเฉพาะกล้องพลาสติก ส่วนในรูปที่ถ่ายจริง ตำแหน่งแสงรั่ว ฝุ่น และเลขเฟรมจะไม่ซ้ำกันเลย</p>
+  <h3>ม้วนฟิล์ม</h3>
+  <div class="row"><span style="font-size:14px">จำนวนรูปต่อม้วน</span><span class="segbtns" id="rollLenSeg"><button type="button" data-len="24">24</button><button type="button" data-len="36">36</button></span></div>
+  <div class="toggles" style="margin-top:10px">
+    <button class="tog" data-key="rollMode" type="button">ถ่ายให้ครบม้วนก่อนค่อยได้ดูรูป</button>
+    <button class="tog" data-key="sound" type="button">เสียงชัตเตอร์</button>
+  </div>
+  <h3>รูปจริงของกล้องและฟิล์ม</h3>
+  <div class="item-photo"><span class="vis" id="ipCamVis"></span><span class="t" id="ipCam"></span><button class="btn sm" id="ipCamSet" type="button">ใส่รูป</button><button class="btn sm" id="ipCamDel" type="button">ลบ</button></div>
+  <div class="item-photo"><span class="vis" id="ipFilmVis"></span><span class="t" id="ipFilm"></span><button class="btn sm" id="ipFilmSet" type="button">ใส่รูป</button><button class="btn sm" id="ipFilmDel" type="button">ลบ</button></div>
+  <p class="note">รูปที่ใส่จะแทนภาพวาดทุกที่ในแอป และเก็บไว้ในเบราว์เซอร์เครื่องนี้</p>
+  <h3>เกี่ยวกับกล้องสด</h3>
+  <p class="note" id="liveInfo">ถ้าเปิดหน้านี้ในแอป Claude จะใช้กล้องสดไม่ได้ ชัตเตอร์จะเปิดแอปกล้องของเครื่องแทน ถ้าเอาไฟล์ไปเปิดบนเว็บของตัวเองที่เป็น https จะเห็นภาพสดพร้อมฟิลเตอร์ ตั้งเวลา และสลับกล้องหน้า-หลังได้</p>
+</div>
+
+<!-- album -->
+<div class="screen" id="album" hidden>
+  <div class="scr-top"><button class="iconbtn" id="albumClose" type="button" aria-label="กลับไปที่กล้อง"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><b>อัลบั้ม</b><small id="albumCount"></small></div>
+  <div class="scr-body">
+    <div class="rollcard" id="rollCard" hidden><span class="vis" id="rollVis"></span><div class="t"><b id="rollTitle"></b><span id="rollSub"></span></div><button class="btn primary sm" id="developBtn" type="button">ล้างฟิล์มตอนนี้</button></div>
+    <div class="grid" id="grid"></div>
+    <p class="empty" id="albumEmpty" hidden>ยังไม่มีรูปในอัลบั้ม กดชัตเตอร์หรือนำเข้ารูปเพื่อเริ่มได้เลย</p>
+  </div>
+</div>
+
+<!-- viewer -->
+<div class="viewer" id="viewer" hidden>
+  <div class="scr-top" style="border:0"><button class="iconbtn" id="vwClose" type="button" aria-label="ปิด"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div class="vw-meta"><span class="vis" id="vwCamVis"></span><span id="vwMeta"></span></div></div>
+  <div class="vw-stage" id="vwStage"><img id="vwImg" alt="รูปที่ถ่ายแบบเต็ม"></div>
+  <div class="vw-bottom">
+    <button class="iconbtn" id="vwPrev" type="button" aria-label="รูปก่อนหน้า"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="btn" id="vwDel" type="button">ลบ</button>
+    <button class="btn primary" id="vwSave" type="button">บันทึกลงเครื่อง</button>
+    <button class="iconbtn" id="vwNext" type="button" aria-label="รูปถัดไป"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</div>
+
+<div class="devel" id="devel" hidden><div>กำลังล้างฟิล์ม…<small id="develSub"></small></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+"use strict";
+/* ================= Film stocks =================
+   curve: master tone curve at x = 0, .25, .5, .75, 1   ch: per-channel offsets [R,G,B] at the same points
+   hue: band adjustments {band:[hue shift deg, sat change, lightness change]}   sat/satH: overall & highlight saturation
+   sh/hi: shadow & highlight tint   grain/clump: amount & clumpiness   soft: film resolution loss   hal: halation */
+const BRANDS=[
+  {id:"kodak",name:"Kodak",color:"#f2b705"},
+  {id:"fujifilm",name:"Fujifilm",color:"#3fa66b"},
+  {id:"ilford",name:"Ilford",color:"#e4dfd8"},
+  {id:"cinestill",name:"CineStill",color:"#d23b2f"},
+  {id:"harman",name:"Harman",color:"#f0782d"},
+  {id:"agfa",name:"Agfa",color:"#c9472b"},
+  {id:"lomography",name:"Lomography",color:"#b06ad9"},
+  {id:"rollei",name:"Rollei",color:"#a3a83a"},
+  {id:"foma",name:"Foma",color:"#4f79c2"},
+  {id:"polaroid",name:"Polaroid",color:"#3d8fd6"}
+];
+const TSHORT={neg:"สี",slide:"สไลด์",bw:"ขาวดำ",cine:"หนัง",instant:"อินสแตนท์"};
+const TYPES={neg:"สีเนกาทีฟ",slide:"สไลด์ (โพซิทีฟ)",bw:"ขาวดำ",cine:"ฟิล์มภาพยนตร์",instant:"อินสแตนท์"};
+const Z=[0,0,0,0,0];
+const INSTAX_LOOK={wb:[.99,1.01,1.03],curve:[.08,.32,.57,.81,.96],ch:[[-.01,-.01,-.005,0,.005],[.01,.01,.008,.005,.005],[.03,.025,.015,.01,.01]],sat:.9,satH:.7,
+  hue:{orange:[-2,-.05,.04],green:[6,-.1,0],blue:[-4,-.05,.03]},sh:[-.01,.012,.03],hi:[.005,.008,.01],grain:.06,soft:.3};
+
+const RAW=[
+ // ---- Kodak
+ {id:"portra160",brand:"kodak",name:"Portra 160",iso:160,type:"neg",desc:"สีธรรมชาติที่สุดของ Kodak ผิวคนเนียนนุ่ม คอนทราสต์ต่ำ เขียวหม่นอมเหลือง ไฮไลต์สะอาด",
+  wb:[1.02,1,.97],curve:[.05,.27,.51,.76,.96],ch:[[0,0,.005,.01,.005],Z,[.01,.005,-.005,-.015,-.02]],sat:.88,satH:.85,
+  hue:{red:[2,-.05,0],orange:[-2,-.05,.03],yellow:[-4,-.15,0],green:[-6,-.25,-.02],aqua:[0,-.1,0],blue:[-6,-.1,.03]},sh:[0,.005,.012],hi:[.012,.006,-.005],grain:.1},
+ {id:"portra400",brand:"kodak",name:"Portra 400",iso:400,type:"neg",desc:"ฟิล์มยอดนิยม โทนอุ่นพีช ผิวสวย ไฮไลต์นวล เงาอมเขียวฟ้าเล็กน้อย ถ่ายสว่างเกินแล้วยิ่งพาสเทล",
+  wb:[1.03,1,.96],curve:[.06,.28,.52,.76,.95],ch:[[.005,.008,.01,.012,.01],Z,[.012,0,-.01,-.02,-.03]],sat:.92,satH:.8,
+  hue:{orange:[-3,-.02,.04],yellow:[-5,-.1,.02],green:[-8,-.22,-.02],aqua:[-5,-.1,0],blue:[-8,-.08,.03],purple:[0,-.1,0],magenta:[0,-.1,0]},sh:[-.004,.008,.014],hi:[.016,.008,-.008],grain:.16},
+ {id:"portra800",brand:"kodak",name:"Portra 800",iso:800,type:"neg",desc:"อุ่นและอิ่มกว่า 400 แดงเข้มขึ้น เกรนชัด เหมาะกับแสงน้อยและกลางคืน",
+  wb:[1.04,1,.94],curve:[.07,.27,.52,.78,.96],ch:[[.01,.01,.012,.015,.01],Z,[.015,0,-.012,-.025,-.035]],sat:1.02,satH:.85,
+  hue:{red:[2,.1,-.02],orange:[-2,.05,.02],green:[-8,-.12,-.03],blue:[-8,0,0]},sh:[0,.01,.02],hi:[.02,.01,-.01],grain:.24},
+ {id:"ektar100",brand:"kodak",name:"Ektar 100",iso:100,type:"neg",desc:"เนกาทีฟที่สีจัดที่สุด ฟ้าน้ำเงินเข้ม แดงสด ละเอียดมาก ผิวคนออกแดงง่าย เหมาะกับวิว",
+  wb:[1.01,1,.99],curve:[.02,.22,.5,.8,.98],ch:[[0,0,.005,.008,0],Z,[.01,.005,0,-.005,-.01]],sat:1.32,satH:1.05,
+  hue:{red:[-3,.15,-.03],orange:[-4,.1,-.02],yellow:[0,.1,0],green:[-4,.1,-.03],aqua:[5,.15,-.03],blue:[5,.2,-.06]},sh:[0,0,.012],hi:[.008,0,-.008],grain:.06,clump:.15},
+ {id:"gold200",brand:"kodak",name:"Gold 200",iso:200,type:"neg",desc:"โทนเหลืองทองอบอุ่น เขียวอมเหลือง ฟ้าซีดลง ฟีลแดดบ่ายหน้าร้อน",
+  wb:[1.06,1.01,.9],curve:[.05,.26,.53,.79,.96],ch:[[.02,.03,.035,.03,.015],[.008,.01,.008,.004,0],[-.01,-.03,-.045,-.06,-.06]],sat:1.1,satH:.9,
+  hue:{orange:[-2,.1,.02],yellow:[-4,.2,.03],green:[-15,-.1,0],aqua:[-8,-.1,0],blue:[-5,-.15,.02]},sh:[.008,.005,-.005],hi:[.03,.02,-.015],grain:.17},
+ {id:"proimage100",brand:"kodak",name:"Pro Image 100",iso:100,type:"neg",desc:"ฟิล์มยอดฮิตในเอเชีย ทนร้อนชื้น อุ่นอิ่ม ผิวอมทอง เขียวอมเหลือง เกรนละเอียด",
+  wb:[1.04,1,.94],curve:[.04,.25,.52,.78,.96],ch:[[.012,.018,.02,.018,.01],[.004,.006,.006,.004,0],[0,-.015,-.03,-.04,-.045]],sat:1.12,satH:.95,
+  hue:{orange:[-2,.06,.03],yellow:[-5,.15,.02],green:[-10,0,-.02],blue:[-4,.05,0]},sh:[.004,.006,.006],hi:[.025,.015,-.01],grain:.1},
+ {id:"colorplus200",brand:"kodak",name:"ColorPlus 200",iso:200,type:"neg",desc:"ฟิล์มราคาประหยัด อุ่นอมน้ำตาล ซีดนิด ๆ ฟีลรูปเก่าในอัลบั้ม",
+  wb:[1.06,1,.9],curve:[.07,.28,.52,.76,.93],ch:[[.022,.03,.032,.025,.015],[.005,.008,.005,.002,0],[-.005,-.025,-.04,-.05,-.05]],sat:.95,satH:.85,
+  hue:{orange:[-2,.05,.02],yellow:[-6,.05,0],green:[-12,-.2,-.03],blue:[-6,-.2,.02]},sh:[.01,.005,0],hi:[.025,.015,-.01],grain:.2},
+ {id:"ultramax400",brand:"kodak",name:"UltraMax 400",iso:400,type:"neg",desc:"สีสด อุ่น คอนทราสต์ดี แดงเด่น ฟิล์มเที่ยวที่ถ่ายได้ทุกสถานการณ์",
+  wb:[1.04,1,.93],curve:[.04,.24,.52,.79,.96],ch:[[.01,.012,.015,.015,.01],Z,[0,-.015,-.025,-.035,-.04]],sat:1.15,satH:.95,
+  hue:{red:[0,.12,-.02],orange:[-2,.08,0],yellow:[-4,.1,.02],green:[-8,0,-.02],blue:[-4,0,0]},sh:[0,.008,.012],hi:[.02,.012,-.01],grain:.22},
+ {id:"e100",brand:"kodak",name:"Ektachrome E100",iso:100,type:"slide",desc:"สไลด์โทนเย็นใส ฟ้าน้ำเงินจัด ดำลึก ไฮไลต์คม ละเอียดมาก",
+  wb:[.98,1,1.04],curve:[.01,.2,.49,.8,.98],ch:[[0,-.005,-.008,-.008,-.005],Z,[.015,.015,.015,.012,.01]],sat:1.2,satH:1,
+  hue:{red:[0,.1,0],green:[4,.05,-.02],aqua:[0,.15,-.02],blue:[0,.2,-.05]},sh:[0,.005,.015],hi:[0,.005,.01],grain:.05},
+ {id:"kodachrome64",brand:"kodak",name:"Kodachrome 64",iso:64,type:"slide",only135:true,desc:"ตำนานที่เลิกผลิตแล้ว แดงเข้มแบบเลือดนก เงาลึกหนัก ฟ้าเข้มอมเขียว โทนอุ่นแบบนิตยสารยุค 60–80",
+  wb:[1.03,1,.96],curve:[0,.15,.45,.78,.97],ch:[[.005,.008,.012,.01,.005],Z,[.01,0,-.01,-.015,-.02]],sat:1.25,satH:1,
+  hue:{red:[-6,.25,-.06],orange:[-3,.1,-.02],yellow:[-6,.15,0],green:[-6,0,-.06],aqua:[-8,.1,-.04],blue:[-10,.1,-.06]},sh:[.01,0,.008],hi:[.015,.008,-.008],grain:.06},
+ {id:"aerochrome",brand:"kodak",name:"Aerochrome III",iso:400,type:"slide",only135:true,mode:"aero",desc:"ฟิล์มอินฟราเรดสีที่เลิกผลิตแล้ว ใบไม้เขียวกลายเป็นแดงชมพู สีแดงกลายเป็นเหลือง ฟ้ายังน้ำเงิน",
+  curve:[.01,.2,.5,.8,.98],sat:1.25,grain:.14},
+ {id:"vision500t",brand:"kodak",name:"Vision3 500T",iso:500,type:"cine",only135:true,desc:"ฟิล์มหนังฮอลลีวูด ไดนามิกเรนจ์กว้างมาก คอนทราสต์ต่ำ ถ่ายกลางวันออกฟ้า ใต้ไฟส้มเป็นธรรมชาติ",
+  wb:[.9,.98,1.12],curve:[.07,.28,.52,.75,.93],ch:[[-.012,-.015,-.015,-.008,0],Z,[.025,.028,.022,.012,.004]],sat:.95,satH:.85,
+  hue:{orange:[-3,0,.02],green:[6,-.12,0],blue:[-6,0,0]},sh:[-.008,.012,.022],hi:[.02,.01,-.008],grain:.2,soft:.12},
+ {id:"trix400",brand:"kodak",name:"Tri-X 400",iso:400,type:"bw",desc:"ขาวดำคลาสสิกของช่างภาพสตรีท คอนทราสต์สูง ดำลึก เกรนดิบเป็นก้อน",
+  bw:[.26,.58,.16],curve:[.02,.19,.49,.82,.99],grain:.32,clump:.5},
+ {id:"tmax400",brand:"kodak",name:"T-Max 400",iso:400,type:"bw",desc:"ขาวดำเกรนแบบ T-grain ละเอียด คมสูง คอนทราสต์กลางค่อนสูง",
+  bw:[.26,.59,.15],curve:[.02,.21,.5,.8,.98],grain:.14,clump:.12},
+ {id:"tmax3200",brand:"kodak",name:"T-Max P3200",iso:3200,type:"bw",only135:true,desc:"เกรนหยาบ คอนทราสต์จัด ถ่ายกลางคืนในเมืองได้",
+  bw:[.27,.58,.15],curve:[.04,.2,.5,.83,.98],grain:.45,clump:.3,soft:.2},
+ {id:"doublex",brand:"kodak",name:"Double-X 5222",iso:250,type:"bw",only135:true,desc:"ขาวดำฟิล์มหนังคลาสสิก คอนทราสต์ดราม่า เกรนดิบ ดำเข้ม",
+  bw:[.28,.57,.15],curve:[.02,.18,.49,.83,.99],grain:.3,clump:.45},
+
+ // ---- Fujifilm
+ {id:"superia400",brand:"fujifilm",name:"Superia X-TRA 400",iso:400,type:"neg",only135:true,desc:"เอกลักษณ์ฟูจิ เขียวสดอมฟ้า เงาออกเขียวเทอร์ควอยซ์ แดงอมม่วงนิด ๆ",
+  wb:[.98,1.02,1],curve:[.04,.25,.52,.78,.96],ch:[[-.01,-.008,-.005,0,0],[.012,.015,.012,.008,.005],[.015,.01,0,-.01,-.015]],sat:1.1,satH:.9,
+  hue:{red:[-4,.05,0],orange:[-3,0,0],yellow:[5,-.05,0],green:[10,.12,-.02],aqua:[0,.1,0],blue:[-4,.05,0],magenta:[0,.05,0]},sh:[-.012,.012,.018],hi:[.01,.012,-.005],grain:.22},
+ {id:"pro400h",brand:"fujifilm",name:"Pro 400H",iso:400,type:"neg",desc:"พาสเทลสว่าง เขียวมินต์ ฟ้าใส ผิวขาวอมชมพู ฟีลงานแต่งญี่ปุ่น",
+  wb:[.98,1.01,1.02],curve:[.07,.31,.56,.8,.97],ch:[[-.01,-.01,-.005,0,0],[.01,.012,.01,.006,.003],[.02,.018,.012,.006,.004]],sat:.82,satH:.7,
+  hue:{red:[-3,-.05,.02],orange:[-4,-.1,.05],yellow:[6,-.15,.02],green:[22,-.15,.03],aqua:[0,-.05,.04],blue:[-6,-.15,.05]},sh:[-.01,.015,.02],hi:[0,.012,.01],grain:.13},
+ {id:"pro160ns",brand:"fujifilm",name:"Pro 160NS",iso:160,type:"neg",desc:"โทนเย็นเป็นกลาง คอนทราสต์ต่ำ ผิวเนียนนวล เขียวหม่นอมฟ้า เหมาะงานพอร์ตเทรต",
+  wb:[.99,1,1.01],curve:[.05,.27,.52,.77,.96],ch:[[-.006,-.006,-.004,0,0],[.006,.008,.006,.004,.002],[.012,.01,.006,.002,0]],sat:.86,satH:.8,
+  hue:{orange:[-3,-.06,.03],yellow:[4,-.12,0],green:[12,-.2,0],aqua:[0,-.05,0],blue:[-4,-.08,.02]},sh:[-.006,.01,.014],hi:[.004,.008,.004],grain:.1},
+ {id:"c200",brand:"fujifilm",name:"C200",iso:200,type:"neg",only135:true,desc:"ฟิล์มเริ่มต้นโทนเย็น อมเขียวทั้งภาพนิด ๆ สีไม่หวือหวา",
+  wb:[.99,1.02,1],curve:[.05,.26,.52,.78,.95],ch:[[-.008,-.01,-.008,-.005,0],[.012,.015,.012,.01,.005],[.01,.008,0,-.008,-.012]],sat:.98,satH:.85,
+  hue:{red:[-2,-.05,0],yellow:[6,-.1,0],green:[10,0,-.02],blue:[-3,-.05,0]},sh:[-.01,.015,.012],hi:[.01,.015,0],grain:.18},
+ {id:"industrial100",brand:"fujifilm",name:"Industrial 100",iso:100,type:"neg",only135:true,desc:"ฟิล์มที่ฮิตในไทยและญี่ปุ่น สีสดใส อมเขียวฟ้า ผิวสว่าง คมชัด",
+  wb:[.99,1.02,1.01],curve:[.03,.24,.52,.79,.97],ch:[[-.008,-.006,-.004,0,0],[.008,.012,.012,.008,.004],[.012,.01,.004,-.004,-.008]],sat:1.2,satH:.95,
+  hue:{red:[-3,.08,0],orange:[-2,-.02,.03],yellow:[6,.05,.02],green:[12,.15,-.02],aqua:[0,.15,0],blue:[-4,.1,0]},sh:[-.008,.012,.016],hi:[.006,.012,0],grain:.08,clump:.15},
+ {id:"fuji400",brand:"fujifilm",name:"Fujifilm 400",iso:400,type:"neg",only135:true,desc:"ฟิล์มรุ่นใหม่ อุ่น สด คอนทราสต์ดี คล้าย UltraMax แต่นุ่มกว่า",
+  wb:[1.03,1,.94],curve:[.04,.25,.52,.78,.96],ch:[[.008,.01,.012,.012,.008],Z,[0,-.012,-.022,-.03,-.035]],sat:1.1,satH:.92,
+  hue:{red:[0,.08,-.01],yellow:[-3,.08,.01],green:[-6,0,-.02]},sh:[0,.008,.012],hi:[.018,.01,-.008],grain:.2},
+ {id:"natura1600",brand:"fujifilm",name:"Natura 1600",iso:1600,type:"neg",only135:true,desc:"ฟิล์มไวแสงสูงในตำนาน ถ่ายแสงน้อยไม่ต้องใช้แฟลช อุ่นอมชมพู เกรนชัด",
+  wb:[1.03,.99,.97],curve:[.06,.26,.52,.78,.95],ch:[[.012,.012,.012,.01,.006],[-.006,-.006,-.004,0,0],[.012,.006,0,-.008,-.012]],sat:1.02,satH:.85,
+  hue:{red:[-4,.08,0],orange:[-3,.02,.02],green:[0,-.15,-.02],magenta:[0,.1,0]},sh:[.008,0,.018],hi:[.02,.008,-.004],grain:.32,soft:.22},
+ {id:"velvia50",brand:"fujifilm",name:"Velvia 50",iso:50,type:"slide",desc:"สไลด์สีจัดที่สุดในตำนาน เขียวเข้ม แดงสด ฟ้าอมม่วง เงาอมแมเจนต้า",
+  wb:[1,.99,1.02],curve:[0,.17,.47,.8,.98],ch:[[0,0,0,.005,0],[0,-.005,-.005,0,0],[.025,.02,.015,.005,0]],sat:1.55,satH:1.15,
+  hue:{red:[-4,.2,-.04],orange:[-6,.15,-.03],yellow:[-3,.2,0],green:[-6,.25,-.06],aqua:[6,.2,-.04],blue:[8,.25,-.08],magenta:[0,.2,0]},sh:[.012,-.004,.025],hi:[.005,0,0],grain:.04},
+ {id:"velvia100",brand:"fujifilm",name:"Velvia 100",iso:100,type:"slide",desc:"สไลด์สีจัดแต่สมดุลกว่า Velvia 50 อมแมเจนต้าน้อยลง",
+  wb:[1,1,1.01],curve:[0,.18,.48,.8,.98],ch:[Z,Z,[.012,.01,.008,.003,0]],sat:1.4,satH:1.1,
+  hue:{red:[-2,.15,-.03],orange:[-3,.1,-.02],green:[-3,.2,-.04],aqua:[4,.15,-.03],blue:[4,.2,-.06]},sh:[.006,0,.018],hi:[0,0,0],grain:.04},
+ {id:"provia100f",brand:"fujifilm",name:"Provia 100F",iso:100,type:"slide",desc:"สไลด์โทนเป็นกลาง สีแม่น คมใส เย็นเล็กน้อย",
+  wb:[.99,1,1.02],curve:[.01,.21,.5,.79,.98],ch:[Z,Z,[.008,.008,.005,.003,0]],sat:1.15,satH:1,hue:{green:[0,.05,0],blue:[0,.1,-.02]},sh:[0,0,.01],hi:[0,0,0],grain:.05},
+ {id:"acros100",brand:"fujifilm",name:"Neopan Acros 100",iso:100,type:"bw",desc:"ขาวดำละเอียดมาก ไล่เทานุ่ม ไวต่อสีน้ำเงินเขียว ท้องฟ้าไม่เข้มจัด",
+  bw:[.2,.58,.22],curve:[.02,.22,.5,.79,.98],grain:.09,clump:.1},
+ Object.assign({id:"instax",brand:"fujifilm",name:"Instax Mini",iso:800,type:"instant",fmt:"instax",desc:"อินสแตนท์ขนาดบัตร สว่าง คอนทราสต์ต่ำ เงาอมฟ้า ขาวนวล"},INSTAX_LOOK),
+ Object.assign({id:"instaxwide",brand:"fujifilm",name:"Instax Wide",iso:800,type:"instant",fmt:"instaxw",desc:"อินสแตนท์ใบใหญ่แนวนอน โทนเดียวกับ Mini สว่าง เงาอมฟ้า"},INSTAX_LOOK),
+ Object.assign({id:"instaxsq",brand:"fujifilm",name:"Instax Square",iso:800,type:"instant",fmt:"instaxsq",desc:"อินสแตนท์จัตุรัส อุ่นกว่า Mini นิดหนึ่ง คอนทราสต์ต่ำ"},INSTAX_LOOK,{wb:[1.01,1.01,1.01]}),
+ {id:"instaxmono",brand:"fujifilm",name:"Instax Mini Monochrome",iso:800,type:"instant",fmt:"instax",desc:"อินสแตนท์ขาวดำ เทานุ่ม ดำไม่สนิท อมเย็นนิด ๆ",
+  bw:[.3,.59,.11],curve:[.07,.28,.53,.79,.95],sh:[0,0,.008],grain:.06,soft:.3},
+
+ // ---- Ilford
+ {id:"hp5",brand:"ilford",name:"HP5 Plus 400",iso:400,type:"bw",desc:"ขาวดำนุ่มลึก ไล่เทาดี เกรนสวย ยืดหยุ่นทุกแสง",bw:[.27,.58,.15],curve:[.03,.23,.51,.79,.97],grain:.26,clump:.45},
+ {id:"delta100",brand:"ilford",name:"Delta 100",iso:100,type:"bw",desc:"ขาวดำ T-grain ละเอียดมาก คมใส โทนเรียบ",bw:[.27,.59,.14],curve:[.02,.22,.5,.79,.98],grain:.07,clump:.1},
+ {id:"delta3200",brand:"ilford",name:"Delta 3200",iso:3200,type:"bw",desc:"เกรนหนามาก ดิบ ดำหนัก ฟีลถ่ายกลางคืน",bw:[.3,.58,.12],curve:[.05,.22,.52,.82,.97],grain:.5,clump:.3,soft:.25},
+ {id:"fp4",brand:"ilford",name:"FP4 Plus 125",iso:125,type:"bw",desc:"ขาวดำละเอียด ไล่โทนเทาได้เยอะ คลาสสิก",bw:[.27,.6,.13],curve:[.02,.22,.5,.79,.98],grain:.1},
+ {id:"panf50",brand:"ilford",name:"Pan F Plus 50",iso:50,type:"bw",desc:"คมจัด ดำสนิท ขาวใส เกรนแทบมองไม่เห็น",bw:[.32,.58,.1],curve:[0,.17,.48,.83,1],grain:.04},
+ {id:"sfx200",brand:"ilford",name:"SFX 200",iso:200,type:"bw",desc:"ไวแสงแดงพิเศษ เหมือนใส่ฟิลเตอร์แดง ฟ้ามืดดราม่า ผิวและใบไม้สว่าง",bw:[.66,.28,.06],curve:[.02,.2,.5,.82,.98],grain:.18},
+ {id:"ortho80",brand:"ilford",name:"Ortho Plus 80",iso:80,type:"bw",desc:"ฟิล์มออร์โธ ไม่ไวต่อแสงแดง ปากและผิวออกเข้ม ฟ้าขาวสว่าง ฟีลภาพยุคแรก",bw:[.02,.55,.43],curve:[.02,.2,.5,.81,.98],grain:.07},
+ {id:"xp2",brand:"ilford",name:"XP2 Super 400",iso:400,type:"bw",desc:"ขาวดำล้างน้ำยาสี นุ่มมาก เกรนน้อย โทนอุ่นนิด ๆ",bw:[.3,.59,.11],curve:[.05,.28,.53,.78,.96],sh:[.008,.004,0],hi:[.015,.01,0],grain:.07,clump:.1},
+ {id:"kentmere400",brand:"ilford",name:"Kentmere Pan 400",iso:400,type:"bw",desc:"ขาวดำราคาประหยัด เกรนชัด คอนทราสต์กลาง",bw:[.28,.58,.14],curve:[.04,.24,.51,.78,.96],grain:.3,clump:.45,soft:.08},
+
+ // ---- CineStill
+ {id:"cs800t",brand:"cinestill",name:"800T",iso:800,type:"cine",desc:"ฟิล์มหนังสำหรับแสงไฟ ถ่ายกลางวันออกฟ้าเย็น ไฟสว่างมีฮาโลแดงรอบ ๆ",
+  wb:[.88,.98,1.14],curve:[.05,.25,.52,.78,.96],ch:[[-.015,-.02,-.02,-.01,0],Z,[.03,.035,.03,.015,.005]],sat:1.05,satH:.9,
+  hue:{red:[3,.1,0],orange:[-3,0,0],yellow:[0,-.1,0],green:[10,-.1,-.02],aqua:[0,.1,0],blue:[-6,.05,0]},sh:[-.01,.015,.03],hi:[.03,.012,-.01],hal:.65,grain:.24},
+ {id:"cs50d",brand:"cinestill",name:"50D",iso:50,type:"cine",desc:"ฟิล์มหนังกลางวัน ละเอียดมาก สีใสสะอาด ฮาโลเบา ๆ",
+  wb:[.99,1,1.01],curve:[.03,.24,.51,.78,.97],ch:[Z,Z,[.01,.008,.005,0,-.005]],sat:1.02,satH:.9,hue:{green:[3,-.05,0],blue:[-3,.05,0]},sh:[0,.004,.01],hi:[.008,.004,0],hal:.3,grain:.05,clump:.1},
+ {id:"cs400d",brand:"cinestill",name:"400D",iso:400,type:"cine",desc:"สีอุ่นแบบหนังโรง อิ่มนุ่ม มีฮาโลรอบไฮไลต์",
+  wb:[1.03,1,.95],curve:[.04,.25,.52,.78,.96],ch:[[.01,.012,.012,.01,.005],Z,[0,-.01,-.02,-.025,-.03]],sat:1.08,satH:.9,hue:{orange:[-2,.05,.02],green:[-6,-.08,0],blue:[-5,0,0]},sh:[0,.01,.015],hi:[.02,.01,-.008],hal:.4,grain:.17},
+ {id:"csbwxx",brand:"cinestill",name:"BwXX",iso:250,type:"bw",only135:true,desc:"ขาวดำจากฟิล์มหนัง Double-X คอนทราสต์ดราม่า ฟีลหนังขาวดำยุคเก่า",bw:[.28,.57,.15],curve:[.02,.19,.49,.82,.99],grain:.28,clump:.45},
+
+ // ---- Harman
+ {id:"phoenix200",brand:"harman",name:"Phoenix 200",iso:200,type:"neg",desc:"ฟิล์มสีน้องใหม่ คอนทราสต์สูง อุ่นอมส้มแดง ฮาโลแดงแรง เกรนชัด ฟีลทดลอง",
+  wb:[1.06,.99,.92],curve:[.03,.2,.5,.82,.97],ch:[[.015,.018,.02,.02,.012],[-.004,-.006,-.006,-.004,0],[.006,-.01,-.025,-.04,-.05]],sat:1.15,satH:.9,
+  hue:{red:[-4,.2,-.02],orange:[-4,.15,0],yellow:[-6,0,0],green:[-6,-.15,-.02],aqua:[0,.1,0],blue:[-10,.05,.02]},sh:[0,.012,.02],hi:[.035,.012,-.01],hal:.55,grain:.3,soft:.1},
+
+ // ---- Agfa
+ {id:"vista200",brand:"agfa",name:"Vista 200",iso:200,type:"neg",only135:true,desc:"แดงอมชมพูสด ฟ้าเข้ม เงาออกม่วงน้ำเงิน",
+  wb:[1.02,.99,.98],curve:[.04,.24,.51,.79,.96],ch:[[.01,.01,.012,.012,.008],[-.005,-.008,-.008,-.005,0],[.02,.012,.005,-.005,-.01]],sat:1.18,satH:.95,
+  hue:{red:[-5,.15,-.02],orange:[-3,.05,0],green:[-3,0,-.02],blue:[6,.1,-.03],magenta:[0,.1,0]},sh:[.008,-.004,.02],hi:[.015,0,-.005],grain:.17},
+ {id:"apx100",brand:"agfa",name:"APX 100",iso:100,type:"bw",desc:"ขาวดำสไตล์ยุโรป คมชัด ดำเข้ม",bw:[.25,.6,.15],curve:[.02,.2,.49,.81,.98],grain:.13},
+ {id:"precisa",brand:"agfa",name:"Precisa CT 100 · ครอส",iso:100,type:"slide",only135:true,desc:"สไลด์ล้างด้วยน้ำยาเนกาทีฟ (ครอสโปรเซส) ไฮไลต์เหลืองเขียว เงาฟ้า คอนทราสต์แรง",
+  wb:[.96,1.04,.92],curve:[0,.18,.5,.84,1],ch:[[-.02,-.03,-.01,.02,.01],[.02,.03,.03,.03,.02],[.08,.05,0,-.08,-.12]],sat:1.3,satH:1.1,
+  hue:{red:[8,.1,0],yellow:[-6,.2,.03],green:[-10,.15,0],blue:[-10,.1,0]},sh:[0,.015,.04],hi:[.02,.03,-.03],grain:.12},
+
+ // ---- Lomography
+ {id:"lomo400",brand:"lomography",name:"Color Negative 400",iso:400,type:"neg",desc:"สีจัด คอนทราสต์แรง อุ่น เกรนชัด สไตล์โลโม่",
+  wb:[1.04,1,.93],curve:[.03,.22,.51,.81,.97],ch:[[.012,.012,.012,.012,.008],Z,[0,-.012,-.025,-.03,-.035]],sat:1.28,satH:1,hue:{red:[0,.15,-.02],yellow:[-3,.15,0],green:[-5,.1,-.02],blue:[0,.1,-.02]},sh:[0,.01,.015],hi:[.02,.01,-.01],grain:.24},
+ {id:"lomo800",brand:"lomography",name:"Color Negative 800",iso:800,type:"neg",desc:"สีจัด อุ่น ถ่ายแสงน้อยได้ เกรนชัดกว่า 400",
+  wb:[1.04,1,.94],curve:[.04,.23,.51,.8,.96],ch:[[.012,.012,.012,.012,.008],Z,[.004,-.01,-.022,-.028,-.032]],sat:1.22,satH:.95,hue:{red:[0,.12,-.02],yellow:[-3,.12,0],green:[-5,.05,-.02]},sh:[0,.01,.018],hi:[.02,.01,-.01],grain:.3,soft:.12},
+ {id:"color92",brand:"lomography",name:"Color '92",iso:400,type:"neg",desc:"ฟีลฟิล์มยุค 90 อุ่นอมเหลือง ซีด ฟ้าหม่น เงาหนักนิด ๆ",
+  wb:[1.05,1.01,.9],curve:[.05,.23,.52,.78,.94],ch:[[.015,.02,.02,.018,.01],[.006,.01,.01,.006,0],[-.01,-.03,-.045,-.055,-.055]],sat:.95,satH:.8,hue:{yellow:[-6,.1,.02],green:[-14,-.15,0],blue:[-8,-.2,.02]},sh:[.01,.008,0],hi:[.03,.02,-.015],grain:.24},
+ {id:"purple",brand:"lomography",name:"LomoChrome Purple",iso:400,type:"neg",desc:"ใบไม้เขียวกลายเป็นม่วง ฟ้ากลายเป็นเขียวอมฟ้า แฟนตาซี",
+  mx:[.7,.5,-.2,.2,.1,.7,.1,.9,0],curve:[.03,.24,.51,.79,.96],sat:1.12,sh:[.01,0,.02],hi:[.01,0,.005],grain:.2},
+ {id:"turquoise",brand:"lomography",name:"LomoChrome Turquoise",iso:400,type:"neg",desc:"ฟ้ากลายเป็นทองส้ม ผิวและสีแดงกลายเป็นฟ้าเทอร์ควอยซ์",
+  mx:[.2,.1,.7,.3,.6,.1,.8,.2,0],curve:[.03,.24,.51,.79,.96],sat:1.1,sh:[0,.01,.015],hi:[.01,.01,0],grain:.2},
+ {id:"metropolis",brand:"lomography",name:"Metropolis",iso:400,type:"neg",desc:"สีจืด คอนทราสต์จัด อมเขียวมะกอก ฟีลเมืองหม่น ๆ",
+  wb:[1.02,1,.95],curve:[.03,.2,.5,.82,.97],ch:[[0,.005,.008,.01,.005],[0,.005,.008,.008,.005],[0,-.005,-.015,-.025,-.03]],sat:.5,satH:.4,hue:{red:[0,.2,0],yellow:[-8,0,0],green:[-15,-.2,0]},sh:[0,.01,.015],hi:[.015,.015,-.01],grain:.22},
+ {id:"redscale",brand:"lomography",name:"Redscale XR",iso:200,type:"neg",mode:"redscale",desc:"แดงส้มทั้งภาพ ได้จากการถ่ายด้านหลังของฟิล์ม",curve:[.03,.24,.52,.8,.97],grain:.24},
+ {id:"berlinkino",brand:"lomography",name:"Berlin Kino 400",iso:400,type:"bw",desc:"ขาวดำฟิล์มหนังเยอรมัน คอนทราสต์นุ่ม เทาเยอะ ฟีลหนังเก่า",bw:[.3,.58,.12],curve:[.05,.27,.52,.77,.95],grain:.25,clump:.35},
+
+ // ---- Rollei
+ {id:"infrared400",brand:"rollei",name:"Infrared 400 · R72",iso:400,type:"bw",mode:"ir",desc:"ใส่ฟิลเตอร์ R72 แล้วใบไม้ขาวสว่างเหมือนหิมะ ฟ้ามืดเกือบดำ ฟีลเหนือจริง",curve:[.02,.2,.5,.82,.99],grain:.2,clump:.3},
+ {id:"retro80s",brand:"rollei",name:"Retro 80S",iso:80,type:"bw",desc:"ไวแดงไปถึงอินฟราเรดใกล้ ฟ้าเข้ม คอนทราสต์สูง ละเอียดมาก",bw:[.48,.44,.08],curve:[.01,.18,.49,.83,.99],grain:.07},
+
+ // ---- Foma
+ {id:"fomapan100",brand:"foma",name:"Fomapan 100 Classic",iso:100,type:"bw",desc:"ขาวดำคลาสสิกจากเช็ก โทนนุ่ม ราคาย่อมเยา",bw:[.27,.6,.13],curve:[.03,.22,.5,.79,.97],grain:.14,clump:.3},
+ {id:"fomapan400",brand:"foma",name:"Fomapan 400 Action",iso:400,type:"bw",desc:"ขาวดำเกรนใหญ่ ดำไม่สนิท ฟีลวินเทจ",bw:[.29,.58,.13],curve:[.05,.25,.51,.78,.95],grain:.36,clump:.5,soft:.1},
+
+ // ---- Polaroid
+ {id:"p600",brand:"polaroid",name:"Color 600 / i-Type",iso:640,type:"instant",fmt:"pola",desc:"สีซีดนุ่ม เงาอมฟ้าเทอร์ควอยซ์ ไฮไลต์อมเหลืองครีม เขียวหม่น",
+  wb:[1.02,1,.96],curve:[.1,.31,.53,.76,.92],ch:[[-.01,0,.01,.02,.02],[.005,.008,.008,.01,.01],[.04,.03,.01,-.02,-.04]],sat:.8,satH:.7,
+  hue:{red:[2,-.05,0],orange:[-2,-.1,.02],yellow:[-6,-.1,0],green:[-12,-.3,0],blue:[-8,-.15,.03]},sh:[-.01,.015,.035],hi:[.02,.018,-.01],grain:.07,soft:.4},
+ {id:"sx70film",brand:"polaroid",name:"SX-70 Color",iso:160,type:"instant",fmt:"pola",desc:"สีวินเทจอมเขียวฟ้า ไฮไลต์ครีม คอนทราสต์ต่ำมาก ฟีลรูปยุค 70",
+  wb:[1,1.01,.97],curve:[.11,.32,.53,.75,.9],ch:[[-.015,-.008,0,.01,.015],[.01,.012,.012,.012,.01],[.035,.025,.008,-.015,-.035]],sat:.75,satH:.65,
+  hue:{orange:[-3,-.1,.02],yellow:[-4,-.1,0],green:[-6,-.3,0],blue:[-10,-.15,.03]},sh:[-.012,.02,.03],hi:[.02,.02,-.012],grain:.07,soft:.45},
+ {id:"pbw",brand:"polaroid",name:"B&W 600",iso:640,type:"instant",fmt:"pola",desc:"ขาวดำนุ่ม ดำไม่สนิท ซีดนิด ๆ แบบรูปโพลารอยด์",
+  bw:[.3,.59,.11],curve:[.1,.3,.53,.77,.92],sh:[0,0,.008],hi:[.008,.006,0],grain:.07,soft:.4}
+];
+
+/* ================= Cameras ================= */
+const KIND={slr:"SLR",rangefinder:"เรนจ์ไฟน์เดอร์",compact:"คอมแพค",half:"ฮาล์ฟเฟรม",disposable:"ใช้แล้วทิ้ง",medium:"มีเดียมฟอร์แมต",tlr:"TLR สองเลนส์",toy:"กล้องพลาสติก",instant:"Polaroid",instax:"Instax"};
+const FMT={"135":"35มม.","half":"35มม. ฮาล์ฟเฟรม","120":"120","pola":"Polaroid 600 / i-Type / SX-70","instax":"Instax Mini","instaxw":"Instax Wide","instaxsq":"Instax Square"};
+const GROUPS=[["135","35มม."],["half","ฮาล์ฟเฟรม"],["120","มีเดียมฟอร์แมต 120"],["instant","อินสแตนท์"]];
+const CAMERAS=[
+ {id:"contaxt2",name:"Contax T2",kind:"compact",fmt:"135",year:1990,lens:"Zeiss Sonnar 38mm f/2.8",finish:"titanium",flash:true,desc:"คอมแพคไฮเอนด์ เลนส์ Zeiss ให้สีอิ่ม คอนทราสต์จัด คมทั้งภาพ เย็นนิด ๆ",wb:[.99,1,1.01],con:.07,sat:1.08,vig:.25,sharp:.55,soft:.08},
+ {id:"leicam6",name:"Leica M6",kind:"rangefinder",fmt:"135",year:1984,lens:"Summicron 35mm f/2",finish:"black",desc:"เรนจ์ไฟน์เดอร์ระดับตำนาน คมแบบไมโครคอนทราสต์ โทนธรรมชาติ ขอบมืดนุ่ม ๆ",wb:[1.01,1,.99],con:.03,sat:1.02,vig:.22,sharp:.45,soft:.05},
+ {id:"mju2",name:"Olympus mju-II",kind:"compact",fmt:"135",year:1997,lens:"35mm f/2.8",finish:"black",flash:true,desc:"คอมแพคยอดฮิต คมกลางภาพ ขอบมืดชัด ขอบภาพนุ่มลง โทนใส",wb:[1,1,1.01],con:.03,sat:1.03,vig:.34,sharp:.4,soft:.18},
+ {id:"yashicat4",name:"Yashica T4",kind:"compact",fmt:"135",year:1990,lens:"Carl Zeiss Tessar 35mm f/3.5",finish:"black",flash:true,desc:"คอมแพคเลนส์ Tessar คอนทราสต์จัด คมแรง ขอบมืดชัด สีอิ่ม",con:.08,sat:1.05,vig:.36,sharp:.5,soft:.15},
+ {id:"gr1",name:"Ricoh GR1",kind:"compact",fmt:"135",year:1996,lens:"GR 28mm f/2.8",finish:"black",flash:true,desc:"คอมแพคมุมกว้างของสายสตรีท คมมาก โทนเป็นกลางค่อนเย็น ขอบมืดเล็กน้อย",wb:[.995,1,1.01],con:.05,vig:.3,sharp:.6,soft:.08},
+ {id:"bigmini",name:"Konica Big Mini",kind:"compact",fmt:"135",year:1989,lens:"Hexanon 35mm f/3.5",finish:"silver",flash:true,desc:"คอมแพคเล็กแต่คม โทนเย็นใส คอนทราสต์ดี",wb:[.99,1,1.015],con:.04,vig:.3,sharp:.45,soft:.12},
+ {id:"trip35",name:"Olympus Trip 35",kind:"compact",fmt:"135",year:1967,lens:"D.Zuiko 40mm f/2.8",finish:"silver",desc:"คอมแพคยุค 60 โทนอุ่นวินเทจ ขอบมืด ภาพนุ่ม เงายกนิด ๆ",wb:[1.02,1.005,.98],vig:.3,sharp:.2,soft:.2,flare:.015},
+ {id:"lca",name:"Lomo LC-A",kind:"compact",fmt:"135",year:1984,lens:"Minitar 1 32mm f/2.8",finish:"black",desc:"ต้นตำรับโลโม่ ขอบมืดหนัก สีจัด คอนทราสต์แรง ขอบภาพเบลอ",wb:[1.01,1,.98],con:.12,sat:1.15,vig:.65,sharp:.2,soft:.4,ca:.0012},
+ {id:"ae1",name:"Canon AE-1 Program",kind:"slr",fmt:"135",year:1981,lens:"Canon FD 50mm f/1.8",finish:"silver",desc:"SLR ยอดนิยมตลอดกาล เลนส์ FD โทนอุ่นนุ่ม คอนทราสต์ละมุน เงายกนิด ๆ",wb:[1.02,1.005,.98],con:-.03,sat:.98,vig:.2,sharp:.15,soft:.2,flare:.02},
+ {id:"fm2",name:"Nikon FM2",kind:"slr",fmt:"135",year:1982,lens:"Nikkor 50mm f/1.4 AI-S",finish:"silver",desc:"กล้องเชิงกลทนทาน โทนเป็นกลาง คมชัด คอนทราสต์ดี",con:.05,sat:1.02,vig:.25,sharp:.4,soft:.1},
+ {id:"om1",name:"Olympus OM-1",kind:"slr",fmt:"135",year:1972,lens:"Zuiko 50mm f/1.8",finish:"silver",desc:"SLR ตัวเล็ก เลนส์ Zuiko ภาพนุ่มละมุน โทนอุ่นนิด ๆ",wb:[1.01,1,.99],con:.02,vig:.2,sharp:.3,soft:.12},
+ {id:"x700",name:"Minolta X-700",kind:"slr",fmt:"135",year:1981,lens:"MD Rokkor 50mm f/1.7",finish:"black",desc:"เลนส์ Rokkor ขึ้นชื่อเรื่องสีอุ่นอิ่ม นุ่มสบายตา",wb:[1.02,1,.98],sat:1.05,con:.02,vig:.22,sharp:.25,soft:.15},
+ {id:"k1000",name:"Pentax K1000",kind:"slr",fmt:"135",year:1976,lens:"SMC Pentax-M 50mm f/2",finish:"silver",desc:"กล้องเรียนถ่ายภาพคลาสสิก เลนส์เก่าให้โทนอุ่นเหลืองนิด ๆ ภาพนุ่ม",wb:[1.025,1.01,.96],vig:.2,sharp:.2,soft:.15,flare:.015},
+ {id:"disposable",name:"กล้องใช้แล้วทิ้ง",kind:"disposable",fmt:"135",year:"",lens:"เลนส์พลาสติก 30mm f/10",finish:"green",flash:true,desc:"เลนส์พลาสติก ขอบภาพเบลอและมืด สีเหลื่อมขอบ ฟีลทริปกับเพื่อน",wb:[1.02,1.01,.97],con:.06,sat:1.04,vig:.45,soft:.5,flare:.02,ca:.0025,grainMul:1.1,grainSz:1.1},
+
+ {id:"peneee",name:"Olympus Pen EE-3",kind:"half",fmt:"half",year:1973,lens:"D.Zuiko 28mm f/3.5",finish:"silver",desc:"ฮาล์ฟเฟรมคลาสสิก ได้ 72 รูปต่อม้วน ภาพแนวตั้ง เกรนใหญ่ขึ้นเพราะเฟรมเล็กลงครึ่งหนึ่ง",wb:[1.01,1,.99],con:.02,vig:.3,sharp:.1,soft:.3,aspect:.75,grainMul:1.3,grainSz:1.3},
+ {id:"pentax17",name:"Pentax 17",kind:"half",fmt:"half",year:2024,lens:"HD 25mm f/3.5",finish:"silver",flash:true,desc:"ฮาล์ฟเฟรมรุ่นใหม่ เลนส์คมกว่ารุ่นเก่า โทนเป็นกลาง",con:.03,vig:.22,sharp:.35,soft:.12,aspect:.75,grainMul:1.3,grainSz:1.3},
+ {id:"ektarh35",name:"Kodak Ektar H35",kind:"half",fmt:"half",year:2022,lens:"เลนส์พลาสติก 22mm f/9.5",finish:"sand",flash:true,desc:"ฮาล์ฟเฟรมพลาสติก ภาพนุ่ม ขอบเบลอ สีเหลื่อม ฟีลกล้องของเล่น",con:.02,sat:1.03,vig:.45,soft:.45,ca:.002,aspect:.75,grainMul:1.35,grainSz:1.35},
+
+ {id:"hassy",name:"Hasselblad 500C/M",kind:"medium",fmt:"120",year:1970,lens:"Zeiss Planar 80mm f/2.8",finish:"chrome",desc:"มีเดียมฟอร์แมต 6×6 รายละเอียดสูง เกรนละเอียดมาก โทนไล่ลึก",con:.04,sat:1.02,vig:.15,sharp:.5,soft:.05,aspect:1,grainMul:.5,grainSz:.75},
+ {id:"rollei28f",name:"Rolleiflex 2.8F",kind:"tlr",fmt:"120",year:1960,lens:"Zeiss Planar 80mm f/2.8",finish:"black",desc:"TLR สองเลนส์ 6×6 ภาพคมแต่มีแสงฟุ้งนุ่ม ๆ ที่ไฮไลต์ ฟีลพอร์ตเทรตคลาสสิก",con:.02,vig:.18,sharp:.4,soft:.08,bloom:.12,aspect:1,grainMul:.5,grainSz:.75},
+ {id:"p67",name:"Pentax 67",kind:"slr",fmt:"120",year:1969,lens:"SMC Takumar 105mm f/2.4",finish:"black",desc:"6×7 ภาพใหญ่ ชัดลึก ฉากหลังละลาย โทนอุ่นนิด ๆ",wb:[1.01,1,.99],con:.03,vig:.2,sharp:.45,soft:.1,aspect:1.25,grainMul:.45,grainSz:.7},
+ {id:"rb67",name:"Mamiya RB67",kind:"medium",fmt:"120",year:1970,lens:"Sekor C 90mm f/3.8",finish:"black",desc:"กล้องสตูดิโอ 6×7 คมกริบทั้งภาพ ขอบมืดน้อย โทนเป็นกลาง",con:.03,vig:.12,sharp:.5,soft:.04,aspect:1.24,grainMul:.45,grainSz:.7},
+ {id:"gw690",name:"Fuji GW690",kind:"rangefinder",fmt:"120",year:1985,lens:"Fujinon 90mm f/3.5",finish:"black",desc:"6×9 ภาพกว้างใหญ่สุดในกลุ่ม คมมาก เกรนละเอียดสุด โทนเย็นใส",wb:[.995,1,1.01],con:.04,vig:.15,sharp:.55,soft:.05,aspect:1.5,grainMul:.4,grainSz:.65},
+ {id:"holga",name:"Holga 120N",kind:"toy",fmt:"120",year:1982,lens:"เลนส์พลาสติก 60mm f/8",finish:"black",desc:"กล้องพลาสติก ขอบมืดจัด ขอบเบลอฝัน ๆ แสงฟุ้ง สีเหลื่อม และแสงรั่ว",wb:[1.01,1,.98],con:-.04,sat:1.05,vig:.8,soft:.75,flare:.03,leak:.6,bloom:.3,ca:.0025,aspect:1,grainMul:.7,grainSz:.85},
+ {id:"diana",name:"Diana F+",kind:"toy",fmt:"120",year:2007,lens:"เลนส์พลาสติก 75mm f/11",finish:"teal",flash:true,desc:"กล้องของเล่นในตำนาน ภาพฟุ้งเหมือนฝัน นุ่มทั้งภาพ แสงรั่วสวย",wb:[1.01,1,.98],con:-.06,sat:1.08,vig:.7,soft:.85,flare:.04,leak:.5,bloom:.45,ca:.003,aspect:1,grainMul:.7,grainSz:.85},
+
+ {id:"sx70",name:"Polaroid SX-70",kind:"instant",fmt:"pola",year:1972,lens:"116mm f/8",finish:"chrome",desc:"กล้องพับอินสแตนท์สุดคลาสสิก ภาพนุ่ม ขอบมืดเล็กน้อย กรอบขาวจัตุรัส",vig:.3,sharp:.1,soft:.25,aspect:1},
+ {id:"polnow",name:"Polaroid Now",kind:"instant",fmt:"pola",year:2020,lens:"ออโต้โฟกัส 2 ระยะ",finish:"white",flash:true,desc:"Polaroid รุ่นใหม่ มีแฟลช ภาพนุ่ม ขอบมืดชัด",vig:.32,sharp:.1,soft:.25,aspect:1},
+ {id:"mini90",name:"Instax Mini 90",kind:"instax",fmt:"instax",year:2013,lens:"Fujinon 60mm f/12.7",finish:"black",flash:true,desc:"อินสแตนท์ขนาดบัตร ภาพสว่าง แฟลชในตัว ขอบมืดบาง ๆ",vig:.22,sharp:.15,soft:.2,aspect:.742},
+ {id:"wide300",name:"Instax Wide 300",kind:"instax",fmt:"instaxw",year:2014,lens:"Fujinon 95mm f/14",finish:"black",flash:true,desc:"อินสแตนท์ใบใหญ่แนวนอน เหมาะถ่ายกลุ่มและวิว",vig:.2,sharp:.15,soft:.2,aspect:1.597},
+ {id:"sq1",name:"Instax Square SQ1",kind:"instax",fmt:"instaxsq",year:2020,lens:"Fujinon 65.75mm f/12.6",finish:"sand",flash:true,desc:"อินสแตนท์จัตุรัส ภาพสว่าง ใช้ง่าย",vig:.2,sharp:.15,soft:.2,aspect:1}
+];
+
+/* ================= Normalise data ================= */
+const BANDS={red:[0,35],orange:[30,28],yellow:[60,34],green:[120,55],aqua:[180,40],blue:[225,45],purple:[270,40],magenta:[320,40]};
+const FILMS=RAW.map(f=>{
+  const o=Object.assign({wb:[1,1,1],curve:[0,.25,.5,.75,1],ch:[Z,Z,Z],sat:1,satH:1,hue:{},sh:[0,0,0],hi:[0,0,0],bw:null,mx:null,mode:null,grain:.12,hal:0},f);
+  o.fmt=f.fmt||(f.only135?"135":"both");
+  if(o.clump===undefined)o.clump=o.type==="bw"?.4:o.type==="slide"?.15:.25;
+  if(o.soft===undefined)o.soft=Math.min(.3,Math.max(0,Math.log2(o.iso/100)*.06));
+  o.bands=Object.keys(o.hue).map(k=>[BANDS[k][0],BANDS[k][1]].concat(o.hue[k]));
+  return o;
+});
+CAMERAS.forEach(c=>{
+  const d={wb:[1,1,1],con:0,sat:1,vig:.2,sharp:0,soft:0,flare:0,leak:0,bloom:0,ca:0,aspect:1.5,grainMul:1,grainSz:1,flash:false};
+  Object.keys(d).forEach(k=>{if(c[k]===undefined)c[k]=d[k];});
+  c.frame=c.fmt==="half"?"135":c.fmt;
+  c.group=c.fmt==="pola"||c.fmt.indexOf("instax")===0?"instant":c.fmt;
+});
+const filmById=Object.fromEntries(FILMS.map(f=>[f.id,f]));
+const camById=Object.fromEntries(CAMERAS.map(c=>[c.id,c]));
+const brandOf=f=>BRANDS.find(b=>b.id===f.brand);
+const isInstantFmt=x=>x==="pola"||x==="instax"||x==="instaxw"||x==="instaxsq";
+function fits(f,c){
+  if(isInstantFmt(c.fmt))return f.fmt===c.fmt;
+  if(isInstantFmt(f.fmt))return false;
+  if(c.fmt==="120")return f.fmt!=="135";
+  return true;
+}
+const FMT_LABEL=f=>isInstantFmt(f.fmt)?"ใช้กับ "+FMT[f.fmt]:f.fmt==="135"?"มีแบบ 35มม.":"มีทั้ง 35มม. และ 120";
+
+/* ================= Drawn visuals (until a real photo is added) ================= */
+const FIN={black:["#1c1c1e","#2e2e31","#9a9a9a"],silver:["#1f1d1c","#c9c7c3","#8d8a85"],chrome:["#1c1b1a","#d6d4cf","#8f8c86"],titanium:["#3a352e","#bfb3a0","#8a7f70"],
+  white:["#ece9e3","#ece9e3","#3a3a3a"],green:["#2f7d5b","#2f7d5b","#e8e1d0"],teal:["#5aa6a0","#5aa6a0","#f1ece2"],sand:["#d9c7a8","#d9c7a8","#5b5148"]};
+function lensSVG(cx,cy,r){
+  return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#0e0e0f" stroke="#555" stroke-width="1"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*.72)+'" fill="#1b1c20"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*.46)+'" fill="url(#gl)"/>'+
+    '<circle cx="'+(cx-r*.16)+'" cy="'+(cy-r*.18)+'" r="'+(r*.12)+'" fill="#fff" opacity=".55"/>';
+}
+function cameraSVG(c){
+  const [body,plate,trim]=FIN[c.finish]||FIN.black,k=c.kind;let s="";
+  const defs='<defs><radialGradient id="gl" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#5b6f9a"/><stop offset=".6" stop-color="#26304a"/><stop offset="1" stop-color="#0c0f18"/></radialGradient></defs>';
+  if(k==="slr"){
+    s+='<path d="M10 24h22l6-12h20l6 12h22v8H10z" fill="'+plate+'"/><rect x="10" y="31" width="76" height="25" rx="3" fill="'+body+'"/>';
+    s+='<rect x="16" y="19" width="10" height="5" rx="1" fill="'+trim+'"/><rect x="70" y="19" width="10" height="5" rx="1" fill="'+trim+'"/>'+lensSVG(48,41,15);
+  }else if(k==="rangefinder"){
+    s+='<rect x="8" y="16" width="80" height="13" rx="4" fill="'+plate+'"/><rect x="8" y="28" width="80" height="27" rx="3" fill="'+body+'"/>';
+    s+='<rect x="13" y="19" width="12" height="7" rx="1" fill="#59606a"/><rect x="68" y="19" width="12" height="7" rx="1" fill="#59606a"/><rect x="44" y="20" width="8" height="5" fill="'+trim+'"/>'+lensSVG(48,42,12);
+  }else if(k==="compact"||k==="disposable"){
+    const r=k==="disposable"?5:14;
+    s+='<rect x="6" y="14" width="84" height="40" rx="'+r+'" fill="'+body+'"/>';
+    if(c.finish==="silver"||c.finish==="titanium")s+='<rect x="6" y="14" width="84" height="12" rx="'+Math.min(r,6)+'" fill="'+plate+'"/>';
+    s+='<rect x="14" y="19" width="12" height="7" rx="1.5" fill="#59606a"/>';
+    if(c.flash)s+='<rect x="64" y="18" width="18" height="7" rx="1.5" fill="#e9e6df" stroke="#888" stroke-width=".8"/>';
+    s+=lensSVG(k==="disposable"?30:54,37,k==="disposable"?8:12);
+  }else if(k==="half"){
+    s+='<rect x="10" y="14" width="76" height="40" rx="6" fill="'+body+'"/><rect x="10" y="14" width="76" height="13" rx="5" fill="'+plate+'"/>';
+    s+='<rect x="62" y="31" width="16" height="9" rx="1.5" fill="#59606a"/>';
+    if(c.flash)s+='<rect x="16" y="18" width="14" height="6" rx="1.5" fill="#e9e6df"/>';
+    s+=lensSVG(36,39,11);
+  }else if(k==="medium"){
+    s+='<rect x="24" y="4" width="48" height="12" rx="1" fill="'+trim+'"/><rect x="22" y="14" width="52" height="44" rx="3" fill="'+plate+'"/><rect x="26" y="18" width="44" height="36" rx="2" fill="'+body+'"/>'+lensSVG(48,36,15);
+  }else if(k==="tlr"){
+    s+='<rect x="30" y="2" width="36" height="60" rx="4" fill="'+body+'"/><rect x="33" y="5" width="30" height="5" fill="'+trim+'"/>'+lensSVG(48,20,9)+lensSVG(48,45,11);
+  }else if(k==="toy"){
+    s+='<rect x="8" y="12" width="80" height="44" rx="8" fill="'+body+'"/><rect x="18" y="16" width="12" height="7" rx="1.5" fill="#59606a"/>';
+    if(c.flash)s+='<rect x="66" y="16" width="14" height="8" rx="1.5" fill="#e9e6df"/>';
+    s+='<circle cx="48" cy="36" r="17" fill="'+trim+'" opacity=".55"/>'+lensSVG(48,36,13);
+  }else if(k==="instant"){
+    s+='<path d="M12 18h72l-4 38H16z" fill="'+body+'"/><rect x="12" y="12" width="72" height="12" rx="3" fill="'+plate+'"/>';
+    s+='<rect x="18" y="15" width="10" height="6" rx="1" fill="#59606a"/>';
+    if(c.flash)s+='<rect x="62" y="14" width="16" height="7" rx="1.5" fill="#e9e6df" stroke="#888" stroke-width=".8"/>';
+    s+='<rect x="28" y="50" width="40" height="3" fill="#222"/>'+lensSVG(48,37,11);
+  }else{
+    s+='<rect x="14" y="6" width="68" height="54" rx="14" fill="'+body+'"/><rect x="20" y="12" width="13" height="8" rx="2" fill="#59606a"/>';
+    s+='<rect x="62" y="12" width="14" height="8" rx="2" fill="#e9e6df"/><circle cx="48" cy="36" r="16" fill="'+trim+'" opacity=".5"/>'+lensSVG(48,36,12);
+  }
+  return '<svg viewBox="0 0 96 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'+c.name+'">'+defs+s+'</svg>';
+}
+function filmSVG(f){
+  const b=brandOf(f),col=b.color,txt=f.brand==="ilford"?"#111":"#fff",tag={neg:"#e9a24b",slide:"#5fa8e8",bw:"#cfcfcf",cine:"#e2584a",instant:"#9ad0c8"}[f.type];
+  let s;
+  if(isInstantFmt(f.fmt)){
+    const w=f.fmt==="instaxw"?54:f.fmt==="instax"?34:42;const x=(64-w)/2;
+    s='<rect x="'+x+'" y="10" width="'+w+'" height="46" rx="3" fill="#f1eee7"/><rect x="'+x+'" y="10" width="'+w+'" height="11" rx="3" fill="'+col+'"/>'+
+      '<rect x="'+(x+4)+'" y="25" width="'+(w-8)+'" height="'+(f.fmt==="instax"?22:20)+'" fill="#2b2b2e"/>'+
+      '<text x="32" y="18.5" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="6.5" font-weight="700" fill="'+txt+'">'+f.iso+'</text>';
+  }else{
+    s='<path d="M42 23h17v19H42z" fill="#4a3220"/>'+[0,1,2].map(i=>'<rect x="'+(45+i*5)+'" y="24.5" width="2.4" height="2.4" fill="#120c08"/><rect x="'+(45+i*5)+'" y="38" width="2.4" height="2.4" fill="#120c08"/>').join("")+
+      '<rect x="24" y="7" width="8" height="7" rx="1" fill="#6d6d6d"/><rect x="12" y="13" width="32" height="5" rx="1.5" fill="#a9a9a9"/>'+
+      '<rect x="13" y="17" width="30" height="34" fill="'+col+'"/><rect x="12" y="50" width="32" height="5" rx="1.5" fill="#a9a9a9"/>'+
+      '<rect x="13" y="29" width="30" height="11" fill="#141414" opacity=".85"/>'+
+      '<text x="28" y="37" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="8" font-weight="700" fill="#fff">'+f.iso+'</text>'+
+      '<rect x="16" y="20" width="5" height="5" rx="1" fill="'+tag+'"/>'+
+      '<rect x="13" y="17" width="5" height="34" fill="#fff" opacity=".12"/>';
+  }
+  return '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'+f.name+'">'+s+'</svg>';
+}
+
+/* user photos for items (stored on this device) */
+const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);return true;}catch(e){return false;}},del(k){try{localStorage.removeItem(k);}catch(e){}}};
+const photoKey=(kind,id)=>"fl.img."+kind+"."+id;
+const photos={};
+[...CAMERAS.map(c=>["cam",c.id]),...FILMS.map(f=>["film",f.id])].forEach(([k,id])=>{const v=store.get(photoKey(k,id));if(v)photos[k+":"+id]=v;});
+function visHTML(kind,item){
+  const p=photos[kind+":"+item.id];
+  if(p)return '<img src="'+p+'" alt="'+item.name.replace(/"/g,"")+'">';
+  return kind==="cam"?cameraSVG(item):filmSVG(item);
+}
+
+/* ================= Color engine ================= */
+function mono(ys){
+  const dx=.25,d=[],m=[];
+  for(let i=0;i<4;i++)d[i]=(ys[i+1]-ys[i])/dx;
+  m[0]=d[0];m[4]=d[3];
+  for(let i=1;i<4;i++)m[i]=d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2;
+  for(let i=0;i<4;i++){
+    if(d[i]===0){m[i]=m[i+1]=0;continue;}
+    const a=m[i]/d[i],b=m[i+1]/d[i],s=a*a+b*b;
+    if(s>9){const t=3/Math.sqrt(s);m[i]=t*a*d[i];m[i+1]=t*b*d[i];}
+  }
+  return x=>{
+    if(x<=0)return ys[0]+m[0]*x;
+    if(x>=1)return ys[4]+m[4]*(x-1);
+    const i=Math.min(3,Math.floor(x/dx)),t=(x-i*dx)/dx,t2=t*t,t3=t2*t;
+    return (2*t3-3*t2+1)*ys[i]+(t3-2*t2+t)*dx*m[i]+(-2*t3+3*t2)*ys[i+1]+(t3-t2)*dx*m[i+1];
+  };
+}
+const toLin=v=>v<=0?0:Math.pow(v,2.2),toS=v=>v<=0?0:Math.pow(v,1/2.2);
+const cl=v=>v<0?0:v>1?1:v;
+const sCurve=(x,c)=>{x=cl(x);const s=x*x*(3-2*x);return x+c*3*(s-x);};
+const shoulder=x=>x<=.9?x:.9+.1*Math.tanh((x-.9)/.1);
+function rgb2hsl(r,g,b){
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2;let h=0,s=0;
+  if(mx!==mn){const d=mx-mn;s=l>.5?d/(2-mx-mn):d/(mx+mn);h=mx===r?((g-b)/d+(g<b?6:0)):mx===g?((b-r)/d+2):((r-g)/d+4);h*=60;}
+  return [h,s,l];
+}
+function hue2(p,q,t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;}
+function hsl2rgb(h,s,l){if(s<=0)return [l,l,l];h=((h%360)+360)%360/360;const q=l<.5?l*(1+s):l+s-l*s,p=2*l-q;return [hue2(p,q,h+1/3),hue2(p,q,h),hue2(p,q,h-1/3)];}
+
+function colorFn(f,c,expo,expired){
+  const cv=[0,1,2].map(i=>mono(f.curve.map((y,j)=>y+(f.ch[i][j]||0))));
+  const ex=Math.pow(2,expo||0),wb=[f.wb[0]*c.wb[0]*ex,f.wb[1]*c.wb[1]*ex,f.wb[2]*c.wb[2]*ex];
+  const sat=f.sat*c.sat*(expired?.78:1),bands=f.bands,mx=f.mx,mono1=f.bw||f.mode==="ir"||f.mode==="redscale";
+  return (r,g,b)=>{
+    let lr=toLin(r)*wb[0],lg=toLin(g)*wb[1],lb=toLin(b)*wb[2];
+    if(mx){const a=mx[0]*lr+mx[1]*lg+mx[2]*lb,e=mx[3]*lr+mx[4]*lg+mx[5]*lb,k=mx[6]*lr+mx[7]*lg+mx[8]*lb;lr=a;lg=e;lb=k;}
+    r=toS(lr);g=toS(lg);b=toS(lb);
+    if(c.flare){r=c.flare+r*(1-c.flare);g=c.flare+g*(1-c.flare);b=c.flare+b*(1-c.flare);}
+    if(c.con){r=sCurve(r,c.con);g=sCurve(g,c.con);b=sCurve(b,c.con);}
+    if(f.mode==="aero"){const veg=Math.max(0,g-Math.max(r,b)),ir=cl(.5*r+.3*g-.2*b+1.5*veg);const nr=ir,ng=r*.95,nb=g*.95;r=nr;g=ng;b=nb;}
+    if(f.mode==="redscale"){const l=cl(.299*r+.587*g+.114*b);r=Math.pow(l,.55);g=Math.pow(l,1.35)*.8;b=Math.pow(l,2.4)*.45;}
+    else if(f.mode==="ir"){const veg=Math.max(0,g-Math.max(r,b)),l=cl(.38*r+.3*g-.12*b+1.9*veg);r=g=b=l;}
+    else if(f.bw){const l=f.bw[0]*r+f.bw[1]*g+f.bw[2]*b;r=g=b=l;}
+    else{
+      const hsl=rgb2hsl(cl(r),cl(g),cl(b));let h=hsl[0],s=hsl[1],l=hsl[2];
+      let dh=0,ds=0,dl=0;
+      for(let i=0;i<bands.length;i++){const B=bands[i];let d=Math.abs(h-B[0]);if(d>180)d=360-d;
+        if(d<B[1]){const w=.5+.5*Math.cos(Math.PI*d/B[1]);dh+=w*B[2];ds+=w*B[3];dl+=w*B[4];}}
+      const cw=Math.min(1,s*2.5);
+      let sm=sat*(1+ds*cw);if(l>.5)sm*=1+(f.satH-1)*(l-.5)*2;
+      h+=dh*cw;l=cl(l+dl*cw);s=cl(s*sm);
+      const o=hsl2rgb(h,s,l),over=Math.max(r,g,b);
+      if(over>1){r=o[0]*over;g=o[1]*over;b=o[2]*over;}else{r=o[0];g=o[1];b=o[2];}
+    }
+    r=cv[0](shoulder(r));g=cv[1](shoulder(g));b=cv[2](shoulder(b));
+    const L=cl(.299*r+.587*g+.114*b),ws=(1-L)*(1-L)*1.5,wh=L*L*1.5;
+    r+=f.sh[0]*ws+f.hi[0]*wh;g+=f.sh[1]*ws+f.hi[1]*wh;b+=f.sh[2]*ws+f.hi[2]*wh;
+    if(expired){
+      if(mono1){r=g=b=.07+r*.88;}
+      else{const w=1-L;r=.05+r*.9+.035*w;g=.04+g*.89;b=.06+b*.88+.03*w-.03*L;}
+    }
+    return [cl(r),cl(g),cl(b)];
+  };
+}
+const lutCache=new Map();
+function getLut(f,c,k,expo,expired,N){
+  const key=f.id+"|"+c.id+"|"+k+"|"+expo+"|"+(expired?1:0)+"|"+N;
+  let L=lutCache.get(key);if(L)return L;
+  const fn=colorFn(f,c,expo,expired),M=N-1;L=new Float32Array(N*N*N*3);let p=0;
+  for(let bi=0;bi<N;bi++)for(let gi=0;gi<N;gi++)for(let ri=0;ri<N;ri++){
+    const R=ri/M,G=gi/M,B=bi/M,o=fn(R,G,B);
+    L[p++]=(R+(o[0]-R)*k)*255;L[p++]=(G+(o[1]-G)*k)*255;L[p++]=(B+(o[2]-B)*k)*255;
+  }
+  if(lutCache.size>80)lutCache.clear();
+  L.N=N;lutCache.set(key,L);return L;
+}
+function applyLut(d,L){
+  const N=L.N,M=N-1,s=M/255,N2=N*N;
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i]*s,g=d[i+1]*s,b=d[i+2]*s;
+    let r0=r|0,g0=g|0,b0=b|0;if(r0>=M)r0=M-1;if(g0>=M)g0=M-1;if(b0>=M)b0=M-1;
+    const fr=r-r0,fg=g-g0,fb=b-b0;
+    const i000=(b0*N2+g0*N+r0)*3,i100=i000+3,i010=i000+N*3,i110=i010+3,i001=i000+N2*3,i101=i001+3,i011=i001+N*3,i111=i011+3;
+    for(let c=0;c<3;c++){
+      const c00=L[i000+c]+(L[i100+c]-L[i000+c])*fr,c10=L[i010+c]+(L[i110+c]-L[i010+c])*fr;
+      const c01=L[i001+c]+(L[i101+c]-L[i001+c])*fr,c11=L[i011+c]+(L[i111+c]-L[i011+c])*fr;
+      const c0=c00+(c10-c00)*fg,c1=c01+(c11-c01)*fg;
+      d[i+c]=c0+(c1-c0)*fb;
+    }
+  }
+}
+
+/* ================= Spatial effects ================= */
+function mk(w,h){const c=document.createElement("canvas");c.width=w;c.height=h;return c;}
+function ctx2d(c){return c.getContext("2d",{willReadFrequently:true});}
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function blurredData(c,factor){
+  const w=c.width,h=c.height,sw=Math.max(2,Math.round(w/factor)),sh=Math.max(2,Math.round(h/factor));
+  const s=mk(sw,sh),sx=s.getContext("2d");sx.imageSmoothingQuality="high";sx.drawImage(c,0,0,sw,sh);
+  const u=mk(w,h),ux=ctx2d(u);ux.imageSmoothingQuality="high";ux.drawImage(s,0,0,w,h);
+  return ux.getImageData(0,0,w,h).data;
+}
+/* lens sharpness falloff, edge softness, chromatic aberration, and the film's own resolution */
+function lensPass(c,x,cam,f,k){
+  const sharp=cam.sharp*k,soft=cam.soft*k,fs=f.soft*k,ca=cam.ca*k;
+  if(sharp<=0&&soft<=0&&fs<=0&&ca<=0)return;
+  const w=c.width,h=c.height,big=Math.max(w,h);
+  const id=x.getImageData(0,0,w,h),d=id.data;
+  const O=ca>0?d.slice():null;
+  const S=(sharp>0||fs>0)?blurredData(c,Math.max(1.6,big/650)):null;
+  const B=soft>0?blurredData(c,Math.max(3,big/170)):null;
+  const cx=w/2,cy=h/2;
+  for(let y=0;y<h;y++){
+    const dy=(y-cy)/cy,dy2=dy*dy;
+    for(let xx=0;xx<w;xx++){
+      const dx=(xx-cx)/cx,r2=(dx*dx+dy2)/2,i=(y*w+xx)*4;
+      const a=sharp*(1-r2)*1.3-fs*.9;
+      let t=(r2-.12)/.8;t=t<0?0:t>1?1:t;const e=soft*t*t*(3-2*t);
+      if(O){
+        const sR=1+ca*r2*20,sB=1-ca*r2*20;
+        let xr=Math.round(cx+(xx-cx)/sR),yr=Math.round(cy+(y-cy)/sR),xb=Math.round(cx+(xx-cx)/sB),yb=Math.round(cy+(y-cy)/sB);
+        xr=xr<0?0:xr>=w?w-1:xr;yr=yr<0?0:yr>=h?h-1:yr;xb=xb<0?0:xb>=w?w-1:xb;yb=yb<0?0:yb>=h?h-1:yb;
+        d[i]=O[(yr*w+xr)*4];d[i+2]=O[(yb*w+xb)*4+2];
+      }
+      for(let ch=0;ch<3;ch++){
+        let v=d[i+ch];
+        if(S)v+=a*(v-S[i+ch]);
+        if(B)v+=e*(B[i+ch]-v);
+        d[i+ch]=v;
+      }
+    }
+  }
+  x.putImageData(id,0,0);
+}
+function boxBlur(a,w,h,r){
+  const t=new Float32Array(a.length),n=2*r+1;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let s=0;for(let k=-r;k<=r;k++){const xx=x+k<0?0:x+k>=w?w-1:x+k;s+=a[y*w+xx];}t[y*w+x]=s/n;}
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let s=0;for(let k=-r;k<=r;k++){const yy=y+k<0?0:y+k>=h?h-1:y+k;s+=t[yy*w+x];}a[y*w+x]=s/n;}
+}
+function addGlow(c,x,amt,thr,col,spread){
+  const w=c.width,h=c.height,sc=Math.max(1,Math.max(w,h)/180);
+  const sw=Math.max(2,Math.round(w/sc)),sh=Math.max(2,Math.round(h/sc));
+  const s=mk(sw,sh),sx=ctx2d(s);sx.imageSmoothingQuality="high";sx.drawImage(c,0,0,sw,sh);
+  const id=sx.getImageData(0,0,sw,sh),p=id.data,n=sw*sh,m=new Float32Array(n);
+  for(let i=0;i<n;i++){const l=(.299*p[i*4]+.587*p[i*4+1]+.114*p[i*4+2])/255;m[i]=l>thr?(l-thr)/(1-thr):0;}
+  const r=Math.max(1,Math.round(Math.max(sw,sh)*spread));
+  boxBlur(m,sw,sh,r);boxBlur(m,sw,sh,r);boxBlur(m,sw,sh,r);
+  for(let i=0;i<n;i++){const v=Math.min(1,m[i]*2.4);p[i*4]=255*v*col[0];p[i*4+1]=255*v*col[1];p[i*4+2]=255*v*col[2];p[i*4+3]=255;}
+  sx.putImageData(id,0,0);
+  x.save();x.globalCompositeOperation="screen";x.globalAlpha=Math.min(1,amt);x.imageSmoothingEnabled=true;x.imageSmoothingQuality="high";x.drawImage(s,0,0,w,h);x.restore();
+}
+function addFlash(x,w,h,amt){
+  const cx=w/2,cy=h*.46,R=Math.hypot(w,h)/2;
+  x.save();
+  let g=x.createRadialGradient(cx,cy,0,cx,cy,R*.85);
+  g.addColorStop(0,"rgba(255,255,255,"+.42*amt+")");g.addColorStop(.45,"rgba(255,255,255,"+.14*amt+")");g.addColorStop(1,"rgba(255,255,255,0)");
+  x.globalCompositeOperation="soft-light";x.fillStyle=g;x.fillRect(0,0,w,h);
+  g=x.createRadialGradient(cx,cy,R*.3,cx,cy,R);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,"+.6*amt+")");
+  x.globalCompositeOperation="source-over";x.fillStyle=g;x.fillRect(0,0,w,h);
+  x.restore();
+}
+function addVignette(x,w,h,v){
+  if(v<=0)return;
+  const cx=w/2,cy=h/2,R=Math.hypot(cx,cy),g=x.createRadialGradient(cx,cy,R*.3,cx,cy,R);
+  g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(.6,"rgba(0,0,0,"+Math.min(.5,v*.35)+")");g.addColorStop(1,"rgba(0,0,0,"+Math.min(.92,v*1.1)+")");
+  x.fillStyle=g;x.fillRect(0,0,w,h);
+}
+function addLeak(x,w,h,amt,seed){
+  const R=rng(seed),n=1+(R()*2|0),cols=["255,110,40","255,60,45","255,190,80"];
+  x.save();x.globalCompositeOperation="screen";
+  for(let i=0;i<n;i++){
+    const right=R()<.5,cx=right?w*(1-R()*.06):w*R()*.06,cy=h*(.1+R()*.8),rad=Math.max(w,h)*(.3+R()*.35),c=cols[R()*3|0];
+    const g=x.createRadialGradient(cx,cy,0,cx,cy,rad);
+    g.addColorStop(0,"rgba("+c+","+.85*amt+")");g.addColorStop(.45,"rgba("+c+","+.32*amt+")");g.addColorStop(1,"rgba("+c+",0)");
+    x.fillStyle=g;x.fillRect(0,0,w,h);
+  }
+  x.restore();
+}
+/* grain: fine layer weighted by brightness (negatives show grain in shadows, slides in mid-tones) + a coarser clump layer */
+function addGrain(c,x,w,h,amt,size,chroma,clump,type,rand){
+  const gs=Math.max(1,Math.max(w,h)/1100*size),nw=Math.ceil(w/gs),nh=Math.ceil(h/gs);
+  const n=mk(nw,nh),nx=ctx2d(n);nx.drawImage(c,0,0,nw,nh);
+  const id=nx.getImageData(0,0,nw,nh),p=id.data,amp=amt*115*(1-clump*.45),ca=amp*chroma;
+  for(let i=0;i<p.length;i+=4){
+    const l=(.299*p[i]+.587*p[i+1]+.114*p[i+2])/255;
+    const wr=type==="neg"||type==="cine"?1.25-.75*l:type==="slide"||type==="instant"?.45+3.4*l*(1-l):.55+3*l*(1-l)+.15*(1-l);
+    const v=(rand()+rand()+rand()-1.5)*amp*wr;
+    if(ca>0){const cc=ca*(1.2-l);p[i]=128+v+(rand()-.5)*cc;p[i+1]=128+v+(rand()-.5)*cc;p[i+2]=128+v+(rand()-.5)*cc;}
+    else{p[i]=p[i+1]=p[i+2]=128+v;}
+    p[i+3]=255;
+  }
+  nx.putImageData(id,0,0);
+  x.save();x.globalCompositeOperation="overlay";x.imageSmoothingEnabled=gs>1.5;x.drawImage(n,0,0,w,h);
+  if(clump>0){
+    const cw=Math.ceil(nw/2.4),chh=Math.ceil(nh/2.4),q=mk(cw,chh),qx=q.getContext("2d"),qd=qx.createImageData(cw,chh),pp=qd.data,a2=amt*115*clump*.8;
+    for(let i=0;i<pp.length;i+=4){const v=128+(rand()+rand()-1)*a2;pp[i]=pp[i+1]=pp[i+2]=v;pp[i+3]=255;}
+    qx.putImageData(qd,0,0);x.imageSmoothingEnabled=true;x.drawImage(q,0,0,w,h);
+  }
+  x.restore();
+}
+function addDust(x,w,h,seed,light){
+  const R=rng(seed*7+3),s=Math.max(w,h)/1000,n=Math.round(30+R()*30),col=light?"rgba(255,255,255,.85)":"rgba(12,10,8,.75)";
+  x.save();x.fillStyle=col;x.strokeStyle=col;
+  for(let i=0;i<n;i++){const px=R()*w,py=R()*h,r=(.6+R()*R()*3.4)*s;x.beginPath();x.ellipse(px,py,r,r*(.45+R()*.6),R()*3,0,Math.PI*2);x.fill();}
+  for(let i=0;i<3;i++){
+    x.lineWidth=(.6+R()*.7)*s;x.beginPath();let px=R()*w,py=R()*h;x.moveTo(px,py);
+    for(let k=0;k<3;k++){const qx=px+(R()-.5)*90*s,qy=py+(R()-.5)*90*s;px+=(R()-.5)*120*s;py+=(R()-.5)*120*s;x.quadraticCurveTo(qx,qy,px,py);}
+    x.stroke();
+  }
+  if(R()<.7){x.globalAlpha=.35;x.lineWidth=Math.max(1,s*.8);const sx=R()*w;x.beginPath();x.moveTo(sx,0);x.lineTo(sx+(R()-.5)*20*s,h);x.stroke();}
+  x.restore();
+}
+/* LED date-back stamp drawn as seven-segment digits */
+const SEG={"0":"abcdef","1":"bc","2":"abged","3":"abgcd","4":"fgbc","5":"afgcd","6":"afgedc","7":"abc","8":"abcdefg","9":"abcdfg"};
+function addStamp(x,w,h,txt){
+  const s=Math.min(w,h),H=s*.052,W=H*.56,t=H*.14,gap=H*.22;
+  const widths=[...txt].map(ch=>ch===" "?W*.55:ch==="'"?t*2.4:W);
+  const total=widths.reduce((a,b)=>a+b+gap,0)-gap;
+  let px=w-s*.06-total;const py=h-s*.06-H;
+  const segs={a:[t*.5,0,W-t,t],b:[W-t,t*.5,t,H/2-t*.5],c:[W-t,H/2,t,H/2-t*.5],d:[t*.5,H-t,W-t,t],e:[0,H/2,t,H/2-t*.5],f:[0,t*.5,t,H/2-t*.5],g:[t*.5,H/2-t/2,W-t,t]};
+  const draw=()=>{let cx=px;[...txt].forEach((ch,i)=>{
+      if(SEG[ch])for(const k of SEG[ch]){const r=segs[k];x.fillRect(cx+r[0],py+r[1],r[2],r[3]);}
+      else if(ch==="'")x.fillRect(cx,py,t,H*.3);
+      cx+=widths[i]+gap;});};
+  x.save();x.transform(1,0,-.1,1,(py+H)*.1,0);
+  x.fillStyle="#ff8a2a";x.shadowColor="rgba(255,70,10,.95)";x.shadowBlur=H*.55;draw();
+  x.shadowBlur=H*.15;x.fillStyle="#ffc078";x.globalAlpha=.8;draw();
+  x.restore();
+}
+function rrect(x,X,Y,W,H,r){x.beginPath();if(x.roundRect)x.roundRect(X,Y,W,H,r);else x.rect(X,Y,W,H);x.fill();}
+function addFrame(c,f,cam,o){
+  const w=c.width,h=c.height,s=Math.min(w,h),mf="\"IBM Plex Mono\", ui-monospace, monospace",fr=cam.frame;
+  if(isInstantFmt(fr)){
+    const m={pola:[s*.06,s*.06,s*.24],instax:[w*.087,h*.105,h*.28],instaxw:[w*.045,h*.105,h*.28],instaxsq:[w*.08,h*.113,h*.27]}[fr].map(Math.round);
+    const out=mk(w+m[0]*2,h+m[1]+m[2]),x=out.getContext("2d");
+    const g=x.createLinearGradient(0,0,0,out.height);g.addColorStop(0,"#f5f2ea");g.addColorStop(1,"#ebe6dc");
+    x.fillStyle=g;x.fillRect(0,0,out.width,out.height);
+    x.drawImage(c,m[0],m[1]);x.strokeStyle="rgba(0,0,0,.18)";x.lineWidth=Math.max(1,s*.002);x.strokeRect(m[0],m[1],w,h);
+    return out;
+  }
+  const no=o.frameNo;
+  if(fr==="120"){
+    const b=Math.round(s*.045),rb=Math.round(s*.09),out=mk(w+b*2,h+b+rb),x=out.getContext("2d");
+    x.fillStyle="#0d0b0a";x.fillRect(0,0,out.width,out.height);x.drawImage(c,b,b);
+    const fs=Math.round(rb*.32);x.font="600 "+fs+"px "+mf;x.fillStyle="#e9a24b";x.textBaseline="middle";
+    x.textAlign="left";x.fillText("◂ "+no,b,out.height-rb*.5);x.textAlign="right";x.fillText(f.iso+"  120",out.width-b,out.height-rb*.5);
+    x.beginPath();x.moveTo(out.width/2-fs*.5,out.height);x.lineTo(out.width/2,out.height-fs*.6);x.lineTo(out.width/2+fs*.5,out.height);x.fill();
+    return out;
+  }
+  const b=Math.round(s*.03),strip=Math.round(s*.12),out=mk(w+b*2,h+strip*2),x=out.getContext("2d");
+  x.fillStyle="#0d0b0a";x.fillRect(0,0,out.width,out.height);x.drawImage(c,b,strip);
+  const hw=Math.round(strip*.3),hh=Math.round(strip*.36),gap=Math.round(hw*2.1);
+  x.fillStyle="rgba(222,214,202,.9)";
+  for(let xx=gap*.4;xx<out.width-hw;xx+=gap){rrect(x,xx,strip*.1,hw,hh,hw*.2);rrect(x,xx,out.height-strip*.1-hh,hw,hh,hw*.2);}
+  const fs=Math.round(strip*.2);x.font="600 "+fs+"px "+mf;x.fillStyle="#e9a24b";x.textBaseline="middle";
+  x.textAlign="left";x.fillText(f.iso+"   "+no+"  ▸  "+no+"A",b+fs,out.height-strip*.25);
+  x.textAlign="right";x.fillText("▸ "+(no+1)+"   "+f.iso,out.width-b-fs,strip*.75);
+  return out;
+}
+function cropRect(w,h,ratio){
+  if(!ratio)return [0,0,w,h];
+  const R=Math.max(ratio,1/ratio),t=w>=h?R:1/R;
+  if(w/h>t){const nw=Math.round(h*t);return [Math.round((w-nw)/2),0,nw,h];}
+  const nh=Math.round(w/t);return [0,Math.round((h-nh)/2),w,nh];
+}
+function grainSize(f,cam){return Math.min(1.7,Math.max(.6,.8+.17*Math.log2(f.iso/100)))*cam.grainSz;}
+
+function develop(c,x,f,cam,o){
+  const w=c.width,h=c.height;
+  if(o.flash&&cam.flash)addFlash(x,w,h,o.k);
+  if(o.lens)lensPass(c,x,cam,f,o.k);
+  const id=x.getImageData(0,0,w,h);applyLut(id.data,getLut(f,cam,o.k,o.expo,o.expired,o.N||33));x.putImageData(id,0,0);
+  if(cam.bloom&&o.k>0)addGlow(c,x,cam.bloom*o.k,.55,[1,.96,.9],1/40);
+  if(f.hal&&o.k>0)addGlow(c,x,f.hal*o.k,.72,[1,.3,.12],1/70);
+  if(f.mode==="ir"&&o.k>0)addGlow(c,x,.35*o.k,.7,[1,1,1],1/50);
+  if(o.vig)addVignette(x,w,h,cam.vig*(.4+.6*o.k));
+  if(o.leak&&cam.leak)addLeak(x,w,h,cam.leak*o.k,o.seed);
+  if(o.dust)addDust(x,w,h,o.seed,f.type!=="slide"&&f.type!=="instant");
+  const g=f.grain*cam.grainMul*o.grainMul*(o.expired?1.5:1);
+  if(g>.002)addGrain(c,x,w,h,g,grainSize(f,cam)*(o.grainScale||1),(f.bw||f.mode==="ir"||f.mode==="redscale")?0:.35,f.clump,f.type,o.rand||rng(o.seed));
+  if(o.date)addStamp(x,w,h,o.stampText);
+}
+function renderFilm(src,f,cam,o){
+  const cr=cropRect(src.width,src.height,o.ratio);
+  const c=mk(cr[2],cr[3]),x=ctx2d(c);x.drawImage(src,cr[0],cr[1],cr[2],cr[3],0,0,cr[2],cr[3]);
+  develop(c,x,f,cam,o);
+  return o.frame?addFrame(c,f,cam,o):c;
+}
+
+/* ================= Sample scene ================= */
+function makeSample(){
+  const w=1600,h=1200,c=mk(w,h),x=c.getContext("2d"),hz=h*.6;
+  let g=x.createLinearGradient(0,0,0,hz);
+  g.addColorStop(0,"#2d5d8f");g.addColorStop(.55,"#83a6c6");g.addColorStop(.86,"#f0b27a");g.addColorStop(1,"#f8d8a0");
+  x.fillStyle=g;x.fillRect(0,0,w,hz);
+  x.fillStyle="rgba(255,255,255,.32)";
+  [[300,170,210,42],[440,200,160,30],[1120,120,240,38],[1300,150,170,28],[760,260,190,24]].forEach(e=>{x.beginPath();x.ellipse(e[0],e[1],e[2],e[3],0,0,Math.PI*2);x.fill();});
+  const sx=w*.66,sy=hz-50,rg=x.createRadialGradient(sx,sy,0,sx,sy,300);
+  rg.addColorStop(0,"#fffbea");rg.addColorStop(.13,"#fff1cc");rg.addColorStop(.3,"rgba(255,205,140,.55)");rg.addColorStop(1,"rgba(255,180,120,0)");
+  x.fillStyle=rg;x.beginPath();x.arc(sx,sy,300,0,Math.PI*2);x.fill();
+  function ridge(base,amp,col,p,q){x.fillStyle=col;x.beginPath();x.moveTo(0,hz);for(let i=0;i<=w;i+=8)x.lineTo(i,base-amp*(.55+.3*Math.sin(i*.0042+p)+.18*Math.sin(i*.013+q)));x.lineTo(w,hz);x.closePath();x.fill();}
+  ridge(hz,120,"#7b87a3",1.2,.4);ridge(hz,70,"#55617c",3.1,2.2);
+  g=x.createLinearGradient(0,hz,0,h*.8);g.addColorStop(0,"#4a7a94");g.addColorStop(1,"#1d4459");x.fillStyle=g;x.fillRect(0,hz,w,h*.2+1);
+  const R=rng(7);
+  for(let i=0;i<70;i++){const t=R(),y=hz+4+t*(h*.2-8),len=(1-t)*160+30;x.fillStyle="rgba(255,222,170,"+(.65*(1-t)+.1)+")";x.fillRect(sx-len/2+(R()-.5)*90*(1-t*.5),y,len,3);}
+  x.fillStyle="rgba(255,255,255,.18)";for(let i=0;i<50;i++)x.fillRect(R()*w,hz+R()*h*.2,40+R()*80,2);
+  g=x.createLinearGradient(0,h*.78,0,h);g.addColorStop(0,"#e6c79f");g.addColorStop(1,"#c49a6c");
+  x.fillStyle=g;x.beginPath();x.moveTo(0,h*.8);for(let i=0;i<=w;i+=10)x.lineTo(i,h*.8+8*Math.sin(i*.006));x.lineTo(w,h);x.lineTo(0,h);x.closePath();x.fill();
+  const ux=w*.22,uy=h*.66,ur=180;
+  x.strokeStyle="#efe9df";x.lineWidth=9;x.beginPath();x.moveTo(ux,uy);x.lineTo(ux+24,h*.95);x.stroke();
+  for(let i=0;i<6;i++){x.fillStyle=i%2?"#f3ede3":"#d1302a";x.beginPath();x.moveTo(ux,uy);x.arc(ux,uy,ur,Math.PI+i*Math.PI/6,Math.PI+(i+1)*Math.PI/6);x.closePath();x.fill();}
+  x.save();x.translate(w*.36,h*.9);x.rotate(-.12);x.fillStyle="#2a9d8f";x.fillRect(-150,-38,300,76);x.fillStyle="#f4efe6";for(let i=-120;i<150;i+=60)x.fillRect(i,-38,18,76);x.restore();
+  const bx=w*.53,by=h*.9,br=40,cols=["#f2c230","#2f6fd1","#e0452f","#f7f3ea"];
+  for(let i=0;i<4;i++){x.fillStyle=cols[i];x.beginPath();x.moveTo(bx,by);x.arc(bx,by,br,i*Math.PI/2,(i+1)*Math.PI/2);x.closePath();x.fill();}
+  x.strokeStyle="#5a4632";x.lineWidth=26;x.lineCap="round";x.beginPath();x.moveTo(w*.9,h);x.quadraticCurveTo(w*.92,h*.65,w*.84,h*.42);x.stroke();
+  const px=w*.84,py=h*.42;
+  [[-2.7,"#2f6b3f"],[-2.2,"#3f8a4f"],[-1.6,"#2f6b3f"],[-1.0,"#3f8a4f"],[-.4,"#2f6b3f"],[.2,"#3f8a4f"],[2.9,"#3f8a4f"]].forEach(a=>{
+    const L=240,ex=px+Math.cos(a[0])*L,ey=py+Math.sin(a[0])*L*.6+70;
+    x.fillStyle=a[1];x.beginPath();x.moveTo(px,py);x.quadraticCurveTo(px+Math.cos(a[0]-.25)*L*.6,py+Math.sin(a[0]-.25)*L*.6-30,ex,ey);x.quadraticCurveTo(px+Math.cos(a[0]+.25)*L*.5,py+Math.sin(a[0]+.25)*L*.5,px,py);x.fill();});
+  return c;
+}
+
+
+
+/* ================= Camera presets (Dazz-style: each camera loads its signature film) ================= */
+const SIGNATURE={contaxt2:"portra400",leicam6:"trix400",mju2:"superia400",yashicat4:"gold200",gr1:"hp5",bigmini:"industrial100",trip35:"colorplus200",lca:"lomo400",
+  ae1:"ultramax400",fm2:"ektar100",om1:"pro400h",x700:"vista200",k1000:"proimage100",disposable:"ultramax400",peneee:"c200",pentax17:"fuji400",ektarh35:"gold200",
+  hassy:"portra160",rollei28f:"fp4",p67:"portra800",rb67:"velvia50",gw690:"provia100f",holga:"lomo800",diana:"purple",sx70:"sx70film",polnow:"p600",mini90:"instax",wide300:"instaxwide",sq1:"instaxsq"};
+const DATE_CAMS=new Set(["mju2","yashicat4","bigmini","disposable","pentax17","ektarh35"]);
+const ORDER=["contaxt2","mju2","yashicat4","gr1","bigmini","trip35","lca","disposable","leicam6","ae1","fm2","om1","x700","k1000","peneee","pentax17","ektarh35","hassy","rollei28f","p67","rb67","gw690","holga","diana","sx70","polnow","mini90","wide300","sq1"];
+CAMERAS.forEach(c=>{c.film=SIGNATURE[c.id];});
+
+/* ================= State ================= */
+const $=id=>document.getElementById(id);
+const DEF={cam:"contaxt2",film:"portra400",k:1,grainMul:1,expo:0,vig:true,flash:false,leak:true,dust:false,expired:false,date:false,frame:false,aspect:"full",timer:0,sound:true,rollMode:false,rollLen:36,rollNo:1,shot:0};
+let S=Object.assign({},DEF);
+try{const raw=store.get("fl3.state");if(raw)S=Object.assign(S,JSON.parse(raw));}catch(e){}
+if(!camById[S.cam])S.cam=DEF.cam;
+if(!filmById[S.film]||!fits(filmById[S.film],camById[S.cam]))S.film=camById[S.cam].film;
+const save=()=>store.set("fl3.state",JSON.stringify(S));
+const F=()=>filmById[S.film],C=()=>camById[S.cam];
+const pad=n=>String(n).padStart(2,"0");
+const stamp=d=>"'"+String(d.getFullYear()).slice(2)+" "+pad(d.getMonth()+1)+" "+pad(d.getDate());
+const ASPECTS=[["full","เต็ม"],["cam","ตามกล้อง"],["square","1:1"]];
+const ratio=()=>S.aspect==="cam"?C().aspect:S.aspect==="square"?1:null;
+function opts(extra){return Object.assign({k:S.k,grainMul:S.grainMul,expo:S.expo,vig:S.vig,flash:S.flash&&C().flash,leak:S.leak,dust:S.dust,expired:S.expired,
+  date:S.date,frame:false,ratio:ratio(),stampText:stamp(new Date()),frameNo:S.shot+1,seed:previewSeed,lens:false},extra||{});}
+let previewSeed=11;
+
+let srcCanvas=null,prevSrc=null,thumbSrc=null,isSample=true;
+function scaleTo(src,max){
+  const w=src.naturalWidth||src.videoWidth||src.width,h=src.naturalHeight||src.videoHeight||src.height,s=Math.min(1,max/Math.max(w,h));
+  const c=mk(Math.max(1,Math.round(w*s)),Math.max(1,Math.round(h*s))),x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(src,0,0,c.width,c.height);return c;
+}
+function squareThumb(src,size){const w=src.width,h=src.height,m=Math.min(w,h),c=mk(size,size),x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(src,(w-m)/2,(h-m)/2,m,m,0,0,size,size);return c;}
+function setPreviewSource(img,sample){
+  srcCanvas=scaleTo(img,3200);prevSrc=scaleTo(srcCanvas,1100);thumbSrc=squareThumb(srcCanvas,120);isSample=sample;
+  $("sampleNote").hidden=!sample||!!stream;filmThumbsDirty=true;schedule();
+}
+
+/* ================= Toasts & small helpers ================= */
+let toastT=0;
+function toast(t,ms){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{el.hidden=true;},ms||2600);}
+const nextFrame=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
+const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,"image/jpeg",q||.92));
+function buzz(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
+
+/* ================= Sound (synthesised, no files) ================= */
+let AC=null;
+function ac(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;}}
+  if(AC&&AC.state==="suspended")AC.resume().catch(()=>{});
+  return AC;
+}
+function noise(t,dur,freq,gain){
+  const a=AC,n=Math.max(1,a.sampleRate*dur|0),buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,4);
+  const s=a.createBufferSource(),bp=a.createBiquadFilter(),g=a.createGain();
+  s.buffer=buf;bp.type="bandpass";bp.frequency.value=freq;bp.Q.value=1.1;g.gain.value=gain;
+  s.connect(bp);bp.connect(g);g.connect(a.destination);s.start(t);
+}
+function motor(t,dur,f0,f1,gain){
+  const a=AC,o=a.createOscillator(),lp=a.createBiquadFilter(),g=a.createGain();
+  o.type="sawtooth";o.frequency.setValueAtTime(f0,t);o.frequency.linearRampToValueAtTime(f1,t+dur);
+  lp.type="lowpass";lp.frequency.value=900;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+.04);g.gain.setValueAtTime(gain,t+dur-.06);g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(lp);lp.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.02);
+}
+function beep(f){if(!S.sound||!ac())return;const a=AC,t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.frequency.value=f;g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.001,t+.12);o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+.13);}
+function shutterSound(){
+  if(!S.sound||!ac())return;
+  const k=C().kind,t=AC.currentTime+.01;
+  if(k==="slr"){noise(t,.05,2200,.9);noise(t+.075,.07,800,1.1);}
+  else if(k==="medium"){noise(t,.06,1600,1);noise(t+.11,.09,600,1.2);}
+  else if(k==="rangefinder"||k==="tlr"){noise(t,.03,3600,.7);}
+  else if(k==="instant"||k==="instax"){noise(t,.04,2600,.8);motor(t+.1,1.05,95,70,.16);}
+  else if(k==="toy"){noise(t,.05,1300,.9);}
+  else if(k==="disposable"){noise(t,.05,1500,.9);for(let i=0;i<6;i++)noise(t+.45+i*.07,.015,4000,.35);}
+  else{noise(t,.035,3000,.65);motor(t+.12,.42,190,150,.11);}
+}
+
+/* ================= Viewfinder overlay (per camera kind) ================= */
+const vf=$("vf"),vctx=vf.getContext("2d"),overlay=$("overlay");
+function drawOverlay(){
+  const r=vf.getBoundingClientRect(),wr=$("vfWrap").getBoundingClientRect();
+  const w=r.width,h=r.height;if(w<2)return;
+  overlay.setAttribute("width",w);overlay.setAttribute("height",h);overlay.setAttribute("viewBox","0 0 "+w+" "+h);
+  overlay.style.left=(r.left-wr.left)+"px";overlay.style.top=(r.top-wr.top)+"px";
+  const k=C().kind,m=Math.min(w,h),st='stroke="rgba(255,255,255,.75)" fill="none" stroke-width="1.4"';let s="";
+  if(k==="rangefinder"){
+    s+='<rect x="'+w*.1+'" y="'+h*.1+'" width="'+w*.8+'" height="'+h*.8+'" '+st+'/>';
+    s+='<rect x="'+(w/2-m*.06)+'" y="'+(h/2-m*.045)+'" width="'+m*.12+'" height="'+m*.09+'" fill="rgba(255,214,150,.14)" stroke="rgba(255,214,150,.6)" stroke-width="1"/>';
+  }else if(k==="slr"||k==="medium"&&C().id!=="hassy"){
+    s+='<circle cx="'+w/2+'" cy="'+h/2+'" r="'+m*.17+'" stroke="rgba(255,255,255,.3)" fill="none" stroke-width="1" stroke-dasharray="2 3"/>';
+    s+='<circle cx="'+w/2+'" cy="'+h/2+'" r="'+m*.09+'" '+st+'/><path d="M'+(w/2-m*.09)+' '+h/2+'H'+(w/2+m*.09)+'" '+st+'/>';
+  }else if(k==="medium"||k==="tlr"){
+    for(let i=1;i<3;i++){s+='<path d="M'+w*i/3+' 0V'+h+'M0 '+h*i/3+'H'+w+'" stroke="rgba(255,255,255,.28)" stroke-width="1"/>';}
+    s+='<circle cx="'+w/2+'" cy="'+h/2+'" r="'+m*.08+'" stroke="rgba(255,255,255,.45)" fill="none" stroke-width="1"/>';
+  }else if(k==="instant"||k==="instax"){
+    s+='<rect x="'+w*.06+'" y="'+h*.06+'" width="'+w*.88+'" height="'+h*.88+'" rx="'+m*.05+'" '+st+'/>';
+  }else if(k==="toy"){
+    s+='<path d="M'+(w/2-10)+' '+h/2+'h20M'+w/2+' '+(h/2-10)+'v20" stroke="rgba(255,255,255,.5)" stroke-width="1"/>';
+  }else{
+    const ix=w*.08,iy=h*.08,L=m*.07;
+    [[ix,iy,1,1],[w-ix,iy,-1,1],[ix,h-iy,1,-1],[w-ix,h-iy,-1,-1]].forEach(([x,y,a,b])=>{s+='<path d="M'+x+' '+(y+b*L)+'V'+y+'H'+(x+a*L)+'" '+st+'/>';});
+    const bw=m*.07;s+='<path d="M'+(w/2-bw)+' '+(h/2-bw*.7)+'h-4v'+bw*1.4+'h4M'+(w/2+bw)+' '+(h/2-bw*.7)+'h4v'+bw*1.4+'h-4" '+st+'/>';
+  }
+  overlay.innerHTML=s;
+}
+let lastPainted=null;
+function paint(c){if(vf.width!==c.width||vf.height!==c.height){vf.width=c.width;vf.height=c.height;requestAnimationFrame(drawOverlay);}vctx.drawImage(c,0,0);}
+let raf=0;
+function schedule(){if(stream)return;if(raf)return;raf=requestAnimationFrame(()=>{raf=0;if(!prevSrc)return;lastPainted=renderFilm(prevSrc,F(),C(),opts());paint(lastPainted);});}
+window.addEventListener("resize",()=>requestAnimationFrame(drawOverlay));
+
+/* ================= Header, carousel, tools ================= */
+function syncHeader(){
+  const c=C(),f=F(),b=brandOf(f);
+  $("headCamVis").innerHTML=visHTML("cam",c);$("headCam").textContent=c.name;
+  $("headFilmVis").innerHTML=visHTML("film",f);$("headFilm").textContent=b.name+" "+f.name+" · "+f.iso;
+  $("bFlash").hidden=!c.flash;$("bFlash").setAttribute("aria-pressed",String(S.flash&&c.flash));
+  $("bDate").setAttribute("aria-pressed",String(S.date));
+  $("bTimer").setAttribute("aria-pressed",String(S.timer>0));$("timerLbl").textContent=S.timer?S.timer+" วิ":"ตั้งเวลา";
+  $("aspectLbl").textContent=ASPECTS.find(a=>a[0]===S.aspect)[1];
+  $("lcdNum").textContent=pad(Math.min(S.shot+1,S.rollLen));$("lcdSub").textContent="/"+S.rollLen+" · ม้วน "+S.rollNo;
+  document.querySelectorAll(".preset").forEach(p=>p.setAttribute("aria-selected",String(p.dataset.cam===c.id)));
+  document.querySelectorAll("[data-key]").forEach(t=>t.setAttribute("aria-pressed",String(!!S[t.dataset.key])));
+  document.querySelector('[data-key="leak"]').hidden=!c.leak;
+  document.querySelectorAll("#rollLenSeg button").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.len===S.rollLen)));
+  $("ipCamVis").innerHTML=visHTML("cam",c);$("ipCam").textContent=c.name;$("ipCamDel").hidden=!photos["cam:"+c.id];
+  $("ipFilmVis").innerHTML=visHTML("film",f);$("ipFilm").textContent=b.name+" "+f.name;$("ipFilmDel").hidden=!photos["film:"+f.id];
+}
+const presetsEl=$("presets");
+function buildPresets(){
+  presetsEl.innerHTML="";
+  ORDER.forEach(id=>{
+    const c=camById[id],b=document.createElement("button");b.type="button";b.className="preset";b.dataset.cam=id;b.setAttribute("role","option");
+    b.innerHTML='<span class="vis">'+visHTML("cam",c)+'</span><span class="n"></span>';b.querySelector(".n").textContent=c.name;
+    b.addEventListener("click",()=>selectCam(id,true));presetsEl.appendChild(b);
+  });
+}
+function centerPreset(smooth){const el=presetsEl.querySelector('[data-cam="'+S.cam+'"]');if(el)el.scrollIntoView({inline:"center",block:"nearest",behavior:smooth?"smooth":"auto"});}
+function selectCam(id,fromUser){
+  const prev=C();S.cam=id;const c=C();
+  S.film=c.film;
+  S.date=DATE_CAMS.has(id);
+  S.flash=id==="disposable";
+  if(isInstantFmt(c.fmt)){S.frame=true;S.aspect="cam";}else if(isInstantFmt(prev.fmt)){S.frame=false;S.aspect="full";}
+  save();syncHeader();schedule();drawOverlay();filmThumbsDirty=true;
+  if(fromUser){centerPreset(true);buzz(8);}
+}
+function selectFilm(id){S.film=id;save();syncHeader();schedule();syncFilmSheet();}
+
+$("bFlash").addEventListener("click",()=>{S.flash=!S.flash;save();syncHeader();schedule();});
+$("bDate").addEventListener("click",()=>{S.date=!S.date;save();syncHeader();schedule();});
+$("bTimer").addEventListener("click",()=>{S.timer=S.timer===0?3:S.timer===3?10:0;save();syncHeader();if(!stream&&S.timer)toast("ตั้งเวลาใช้ได้ตอนเปิดกล้องสด");});
+$("bAspect").addEventListener("click",()=>{const i=ASPECTS.findIndex(a=>a[0]===S.aspect);S.aspect=ASPECTS[(i+1)%ASPECTS.length][0];save();syncHeader();schedule();});
+$("bImport").addEventListener("click",()=>$("fileIn").click());
+
+/* ================= Sheets ================= */
+let openSheet=null;
+function showSheet(id){closeSheet();openSheet=$(id);openSheet.hidden=false;$("scrim").hidden=false;}
+function closeSheet(){if(openSheet)openSheet.hidden=true;openSheet=null;$("scrim").hidden=true;}
+$("scrim").addEventListener("click",closeSheet);
+document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeSheet));
+$("bSettings").addEventListener("click",()=>showSheet("sheetSet"));
+$("filmChip").addEventListener("click",()=>{filmBrand=F().brand;syncFilmSheet();showSheet("sheetFilm");if(filmThumbsDirty)renderFilmThumbs();});
+
+/* film sheet */
+const brandsEl=$("brands"),filmsEl=$("films"),brandEls={},filmEls={};
+let filmBrand=null,filmThumbsDirty=true;
+BRANDS.forEach(b=>{
+  const btn=document.createElement("button");btn.type="button";btn.className="brand";btn.setAttribute("role","tab");
+  btn.innerHTML='<span class="dot" style="background:'+b.color+'"></span>'+b.name+' <small></small>';
+  btn.addEventListener("click",()=>{filmBrand=b.id;syncFilmSheet();});brandsEl.appendChild(btn);brandEls[b.id]=btn;
+});
+FILMS.forEach(f=>{
+  const b=document.createElement("button");b.type="button";b.className="film";b.setAttribute("aria-label",brandOf(f).name+" "+f.name);
+  const pv=document.createElement("span");pv.className="pv";const cv=mk(120,120),badge=document.createElement("span");badge.className="vis badge";pv.append(cv,badge);
+  const nm=document.createElement("span"),ed=document.createElement("span");nm.className="fname";nm.textContent=f.name;ed.className="edge";ed.textContent="ISO "+f.iso+" · "+TSHORT[f.type];
+  b.append(pv,nm,ed);b.addEventListener("click",()=>selectFilm(f.id));filmsEl.appendChild(b);filmEls[f.id]={btn:b,cv,badge};
+});
+function syncFilmSheet(){
+  const c=C(),f=F();
+  if(!FILMS.some(x=>x.brand===filmBrand&&fits(x,c)))filmBrand=f.brand;
+  BRANDS.forEach(b=>{const n=FILMS.filter(x=>x.brand===b.id&&fits(x,c)).length;brandEls[b.id].hidden=!n;brandEls[b.id].querySelector("small").textContent=n;brandEls[b.id].setAttribute("aria-selected",String(b.id===filmBrand));});
+  FILMS.forEach(x=>{filmEls[x.id].btn.hidden=!(x.brand===filmBrand&&fits(x,c));filmEls[x.id].btn.setAttribute("aria-pressed",String(x.id===f.id));filmEls[x.id].badge.innerHTML=visHTML("film",x);});
+  $("sfFilmVis").innerHTML=visHTML("film",f);$("sfTitle").textContent=brandOf(f).name+" "+f.name;
+  $("sfDesc").textContent=TYPES[f.type]+" · ISO "+f.iso+" — "+f.desc;
+  const sig=filmById[c.film];$("sigBtn").textContent="ใช้ฟิล์มประจำ "+c.name+": "+sig.name;$("sigBtn").hidden=sig.id===f.id;
+  $("fitNote").textContent="แสดงเฉพาะฟิล์มที่ใส่ "+c.name+" ได้ ("+FMT[c.fmt]+")";
+}
+$("sigBtn").addEventListener("click",()=>selectFilm(C().film));
+let thumbT=0;
+function renderFilmThumbs(){
+  if(!thumbSrc)return;clearTimeout(thumbT);filmThumbsDirty=false;
+  const cam=C(),list=FILMS.filter(f=>fits(f,cam));let i=0;
+  const step=()=>{const t0=performance.now();
+    while(i<list.length&&performance.now()-t0<24){const f=list[i++];
+      const out=renderFilm(thumbSrc,f,cam,{k:1,grainMul:.5,expo:0,vig:true,leak:false,date:false,frame:false,seed:3,lens:false,N:17,grainScale:.6,ratio:null});
+      filmEls[f.id].cv.getContext("2d").drawImage(out,0,0);}
+    if(i<list.length)thumbT=setTimeout(step,0);};
+  step();
+}
+
+/* settings */
+$("amt").addEventListener("input",e=>{S.k=e.target.value/100;$("amtOut").textContent=e.target.value+"%";save();schedule();});
+$("grn").addEventListener("input",e=>{S.grainMul=e.target.value/100;$("grnOut").textContent=e.target.value+"%";save();schedule();});
+$("expo").addEventListener("input",e=>{S.expo=+e.target.value;$("expoOut").textContent=(S.expo>0?"+":"")+S.expo+" สต็อป";save();schedule();});
+function syncSliders(){$("amt").value=Math.round(S.k*100);$("amtOut").textContent=Math.round(S.k*100)+"%";$("grn").value=Math.round(S.grainMul*100);$("grnOut").textContent=Math.round(S.grainMul*100)+"%";$("expo").value=S.expo;$("expoOut").textContent=(S.expo>0?"+":"")+S.expo+" สต็อป";}
+document.querySelectorAll("[data-key]").forEach(t=>t.addEventListener("click",()=>{
+  const k=t.dataset.key;S[k]=!S[k];
+  if(k==="rollMode"&&!S[k])developRoll(true);
+  save();syncHeader();schedule();refreshGalleryButton();
+}));
+document.querySelectorAll("#rollLenSeg button").forEach(b=>b.addEventListener("click",()=>{S.rollLen=+b.dataset.len;if(S.shot>=S.rollLen)S.shot=S.rollLen-1;save();syncHeader();}));
+
+/* real photos of camera / film */
+let photoTarget=null;
+$("ipCamSet").addEventListener("click",()=>{photoTarget=["cam",C()];$("itemIn").click();});
+$("ipFilmSet").addEventListener("click",()=>{photoTarget=["film",F()];$("itemIn").click();});
+$("ipCamDel").addEventListener("click",()=>{delete photos["cam:"+C().id];store.del(photoKey("cam",C().id));refreshItemVisuals();});
+$("ipFilmDel").addEventListener("click",()=>{delete photos["film:"+F().id];store.del(photoKey("film",F().id));refreshItemVisuals();});
+$("itemIn").addEventListener("change",()=>{
+  const el=$("itemIn"),file=el.files&&el.files[0];el.value="";if(!file||!photoTarget)return;
+  const [kind,item]=photoTarget,url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{const d=scaleTo(img,360).toDataURL("image/jpeg",.82);URL.revokeObjectURL(url);photos[kind+":"+item.id]=d;
+    if(!store.set(photoKey(kind,item.id),d))toast("ใส่รูปแล้ว แต่พื้นที่เก็บในเครื่องเต็ม รูปนี้จะหายเมื่อปิดหน้า");refreshItemVisuals();};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast("เปิดรูปนี้ไม่ได้");};img.src=url;
+});
+function refreshItemVisuals(){buildPresets();syncHeader();centerPreset(false);refreshGalleryButton();}
+
+/* ================= Album storage (IndexedDB, falls back to memory) ================= */
+const DB={db:null,
+  async open(){try{this.db=await new Promise((res,rej)=>{const r=indexedDB.open("filmlab",1);r.onupgradeneeded=()=>r.result.createObjectStore("shots",{keyPath:"id"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}catch(e){this.db=null;}},
+  all(){if(!this.db)return Promise.resolve([]);return new Promise(res=>{try{const q=this.db.transaction("shots").objectStore("shots").getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>res([]);}catch(e){res([]);}});},
+  put(s){if(!this.db)return Promise.resolve(false);return new Promise(res=>{try{const t=this.db.transaction("shots","readwrite");t.objectStore("shots").put(s);t.oncomplete=()=>res(true);t.onerror=()=>res(false);}catch(e){res(false);}});},
+  del(id){if(!this.db)return Promise.resolve();return new Promise(res=>{try{const t=this.db.transaction("shots","readwrite");t.objectStore("shots").delete(id);t.oncomplete=()=>res();t.onerror=()=>res();}catch(e){res();}});}
+};
+let shots=[];
+const developed=()=>shots.filter(s=>s.developed);
+const pending=()=>shots.filter(s=>!s.developed);
+function refreshGalleryButton(){
+  const d=developed(),p=pending();
+  if(S.rollMode&&p.length){$("galVis").innerHTML=visHTML("film",F());}
+  else if(d.length){$("galVis").innerHTML='<img src="'+d[0].thumb+'" alt="">';}
+  else{$("galVis").innerHTML="";}
+  const n=S.rollMode?p.length:0;$("galBadge").hidden=!n;$("galBadge").textContent=n;
+}
+
+/* ================= Capture pipeline ================= */
+let busyCount=0;
+function busy(on,t){busyCount+=on?1:-1;if(busyCount<0)busyCount=0;$("busy").hidden=busyCount===0;if(t)$("busy").textContent=t;}
+async function develop1(img,date,opt){
+  const cam=C(),film=F(),seed=1+Math.floor(Math.random()*1e9),frameNo=S.shot+1;
+  const base=scaleTo(img,3200);
+  await nextFrame();
+  const out=renderFilm(base,film,cam,opts({seed,frameNo,stampText:stamp(date),frame:S.frame,lens:true}));
+  const blob=await toBlob(out,.92);
+  const thumb=scaleTo(out,360).toDataURL("image/jpeg",.78);
+  const shot={id:Date.now()+"-"+seed,blob,thumb,cam:cam.id,film:film.id,date:+date,taken:Date.now(),developed:!S.rollMode,roll:S.rollNo,frame:frameNo,w:out.width,h:out.height};
+  const ok=await DB.put(shot);if(!ok&&!DB.db&&!memWarned){memWarned=true;toast("เบราว์เซอร์นี้เก็บอัลบั้มถาวรไม่ได้ รูปจะอยู่จนกว่าจะปิดหน้า กดบันทึกลงเครื่องไว้ด้วย",4200);}
+  shots.unshift(shot);
+  S.shot++;
+  if(S.shot>=S.rollLen){
+    if(S.rollMode){setTimeout(()=>{toast("ครบม้วนแล้ว กำลังล้างฟิล์ม");developRoll(false);},opt&&opt.instant?2600:900);}
+    else{S.shot=0;S.rollNo++;toast("ครบ "+S.rollLen+" รูป ขึ้นม้วนใหม่แล้ว");}
+  }
+  save();syncHeader();refreshGalleryButton();
+  return {shot,out};
+}
+let memWarned=false;
+async function captureFrom(img,date){
+  const instant=isInstantFmt(C().fmt);
+  shutterSound();buzz(15);
+  const cur=$("curtain");cur.classList.remove("snap");void cur.offsetWidth;cur.classList.add("snap");
+  busy(true,instant?"กำลังพิมพ์รูป…":"กำลังล้างฟิล์ม…");
+  try{
+    const {shot}=await develop1(img,date,{instant});
+    if(!stream)setPreviewSource(img,false);
+    busy(false);
+    if(!shot.developed){toast("ถ่ายแล้ว "+(S.shot===0?S.rollLen:S.shot)+"/"+S.rollLen+" · รูปจะเห็นหลังล้างฟิล์ม");return;}
+    if(instant)ejectPrint(shot);else flyToGallery(shot);
+  }catch(e){busy(false);toast("ล้างรูปไม่สำเร็จ ลองใหม่อีกครั้ง");}
+}
+function ejectPrint(shot){
+  const p=$("print"),img=$("printImg");
+  p.classList.remove("go","instax");if(C().kind==="instax")p.classList.add("instax");
+  const url=URL.createObjectURL(shot.blob);img.onload=()=>{URL.revokeObjectURL(url);};img.src=url;
+  p.hidden=false;void p.offsetWidth;p.classList.add("go");
+  clearTimeout(ejectPrint.t);ejectPrint.t=setTimeout(()=>{p.hidden=true;},7000);
+  p.onclick=()=>{p.hidden=true;openViewer(shot.id);};
+}
+function flyToGallery(shot){
+  const fr=$("finder").getBoundingClientRect(),g=$("galBtn").getBoundingClientRect();
+  const im=document.createElement("img");im.className="flyer";im.src=shot.thumb;
+  const w=Math.min(fr.width*.7,fr.height*.7*(shot.w/shot.h)),h=w*shot.h/shot.w;
+  im.style.width=w+"px";im.style.height=h+"px";im.style.left=(fr.left+(fr.width-w)/2)+"px";im.style.top=(fr.top+(fr.height-h)/2)+"px";
+  document.body.appendChild(im);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const sx=g.width/w,dx=g.left+g.width/2-(fr.left+fr.width/2),dy=g.top+g.height/2-(fr.top+fr.height/2);
+    im.style.transform="translate("+dx+"px,"+dy+"px) scale("+sx+")";im.style.opacity=".4";
+  }));
+  setTimeout(()=>im.remove(),700);
+}
+
+/* shutter */
+let timerRunning=false;
+$("shutter").addEventListener("click",async()=>{
+  ac();
+  if(stream&&video.videoWidth){
+    if(S.timer&&!timerRunning){
+      timerRunning=true;const cd=$("countdown");cd.hidden=false;
+      for(let i=S.timer;i>0;i--){cd.textContent=i;beep(i===1?1320:880);await new Promise(r=>setTimeout(r,1000));if(!stream)break;}
+      cd.hidden=true;timerRunning=false;if(!stream)return;
+    }
+    const c=mk(video.videoWidth,video.videoHeight),x=c.getContext("2d");
+    if(facing==="user"){x.translate(c.width,0);x.scale(-1,1);}
+    x.drawImage(video,0,0);captureFrom(c,new Date());
+  }else{
+    $("camIn").click();
+  }
+});
+function loadImage(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{res({img,url});};img.onerror=()=>{URL.revokeObjectURL(url);rej();};img.src=url;});}
+$("camIn").addEventListener("change",async()=>{
+  const el=$("camIn"),file=el.files&&el.files[0];el.value="";if(!file)return;
+  try{const {img,url}=await loadImage(file);await captureFrom(img,new Date());URL.revokeObjectURL(url);}catch(e){toast("เปิดรูปนี้ไม่ได้");}
+});
+$("fileIn").addEventListener("change",async()=>{
+  const el=$("fileIn"),files=[...(el.files||[])];el.value="";if(!files.length)return;
+  let n=0;
+  for(const file of files){
+    try{
+      const {img,url}=await loadImage(file);
+      if(files.length===1){await captureFrom(img,new Date(file.lastModified||Date.now()));}
+      else{busy(true,"กำลังล้างรูปที่นำเข้า "+(n+1)+"/"+files.length);await develop1(img,new Date(file.lastModified||Date.now()));busy(false);if(n===files.length-1&&!stream)setPreviewSource(img,false);}
+      URL.revokeObjectURL(url);n++;
+    }catch(e){busy(false);}
+  }
+  if(files.length>1)toast("นำเข้า "+n+" รูปแล้ว"+(S.rollMode?" (รอล้างฟิล์ม)":""));
+});
+
+/* ================= Live camera ================= */
+const video=$("video");
+let stream=null,facing="environment",liveRaf=0,liveBuf=null;
+async function startLive(){
+  stopLive();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){liveUnavailable();return;}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing},width:{ideal:2560},height:{ideal:1920}},audio:false});
+    video.srcObject=stream;await video.play();
+    vf.style.transform=facing==="user"?"scaleX(-1)":"";
+    $("liveStart").hidden=true;$("liveMsg").hidden=true;$("sampleNote").hidden=true;$("flipBtn").hidden=false;
+    liveLoop();
+  }catch(e){stream=null;liveUnavailable(e);}
+}
+function liveUnavailable(e){
+  $("liveStart").hidden=true;$("flipBtn").hidden=true;$("sampleNote").hidden=!isSample;
+  $("liveMsg").hidden=false;$("liveMsg").textContent="กล้องสดใช้ในหน้านี้ไม่ได้ · กดชัตเตอร์เพื่อเปิดกล้องของเครื่อง";
+  schedule();
+}
+function stopLive(){cancelAnimationFrame(liveRaf);liveRaf=0;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}video.srcObject=null;vf.style.transform="";}
+function liveLoop(){
+  liveRaf=requestAnimationFrame(liveLoop);
+  if(video.readyState<2||!video.videoWidth)return;
+  const cam=C(),f=F(),cr=cropRect(video.videoWidth,video.videoHeight,ratio());
+  const sc=Math.min(1,720/Math.max(cr[2],cr[3])),w=Math.round(cr[2]*sc),h=Math.round(cr[3]*sc);
+  if(!liveBuf||liveBuf.width!==w||liveBuf.height!==h)liveBuf=mk(w,h);
+  const bx=ctx2d(liveBuf);bx.drawImage(video,cr[0],cr[1],cr[2],cr[3],0,0,w,h);
+  develop(liveBuf,bx,f,cam,opts({ratio:null,rand:Math.random,dust:false}));
+  paint(liveBuf);
+}
+$("liveStart").addEventListener("click",()=>{ac();startLive();});
+$("flipBtn").addEventListener("click",()=>{facing=facing==="environment"?"user":"environment";startLive();});
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&stream){stopLive();resumeLive=true;}else if(!document.hidden&&resumeLive){resumeLive=false;startLive();}});
+let resumeLive=false;
+
+/* ================= Album UI ================= */
+function openAlbum(){renderAlbum();$("album").hidden=false;}
+$("galBtn").addEventListener("click",openAlbum);
+$("albumClose").addEventListener("click",()=>{$("album").hidden=true;});
+function renderAlbum(){
+  const d=developed(),p=pending();
+  $("albumCount").textContent=d.length+" รูป";
+  const show=S.rollMode&&p.length>0;$("rollCard").hidden=!show;
+  if(show){$("rollVis").innerHTML=visHTML("film",filmById[p[0].film]||F());$("rollTitle").textContent="ม้วนที่ "+S.rollNo+" · ยังไม่ได้ล้าง";
+    $("rollSub").textContent="ถ่ายไปแล้ว "+p.length+"/"+S.rollLen+" รูป";}
+  const grid=$("grid");grid.innerHTML="";
+  d.forEach(s=>{const b=document.createElement("button");b.type="button";b.setAttribute("aria-label","เปิดรูป");b.innerHTML='<img src="'+s.thumb+'" alt="" loading="lazy">';b.addEventListener("click",()=>openViewer(s.id));grid.appendChild(b);});
+  $("albumEmpty").hidden=d.length>0||show;
+}
+async function developRoll(silent){
+  const p=pending();if(!p.length){if(!silent){S.shot=0;S.rollNo++;save();syncHeader();}return;}
+  if(!silent){$("develSub").textContent="ม้วนที่ "+S.rollNo+" · "+p.length+" รูป";$("devel").hidden=false;await new Promise(r=>setTimeout(r,2200));}
+  for(const s of p){s.developed=true;await DB.put(s);}
+  S.shot=0;S.rollNo++;save();
+  $("devel").hidden=true;syncHeader();refreshGalleryButton();
+  if(!silent){openAlbum();toast("ล้างฟิล์มเสร็จแล้ว "+p.length+" รูป");}
+}
+$("developBtn").addEventListener("click",()=>developRoll(false));
+
+/* viewer */
+let vwId=null,vwUrl=null;
+function openViewer(id){
+  const s=shots.find(x=>x.id===id);if(!s)return;vwId=id;
+  if(vwUrl)URL.revokeObjectURL(vwUrl);vwUrl=URL.createObjectURL(s.blob);
+  $("vwImg").src=vwUrl;$("vwStage").classList.remove("zoom");
+  const c=camById[s.cam],f=filmById[s.film],d=new Date(s.date);
+  $("vwCamVis").innerHTML=c?visHTML("cam",c):"";
+  $("vwMeta").textContent=(c?c.name:"")+" · "+(f?brandOf(f).name+" "+f.name:"")+" · "+d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear();
+  const list=developed(),i=list.findIndex(x=>x.id===id);$("vwPrev").disabled=i<=0;$("vwNext").disabled=i>=list.length-1;
+  $("viewer").hidden=false;
+}
+function stepViewer(dir){const list=developed(),i=list.findIndex(x=>x.id===vwId);const n=list[i+dir];if(n)openViewer(n.id);}
+$("vwPrev").addEventListener("click",()=>stepViewer(-1));
+$("vwNext").addEventListener("click",()=>stepViewer(1));
+$("vwClose").addEventListener("click",()=>{$("viewer").hidden=true;});
+$("vwStage").addEventListener("dblclick",()=>$("vwStage").classList.toggle("zoom"));
+let swipeX=null;
+$("vwStage").addEventListener("touchstart",e=>{if(!$("vwStage").classList.contains("zoom"))swipeX=e.touches[0].clientX;},{passive:true});
+$("vwStage").addEventListener("touchend",e=>{if(swipeX===null)return;const dx=e.changedTouches[0].clientX-swipeX;swipeX=null;if(Math.abs(dx)>60)stepViewer(dx<0?1:-1);});
+let delArm=0;
+$("vwDel").addEventListener("click",async()=>{
+  if(Date.now()-delArm>3000){delArm=Date.now();$("vwDel").textContent="แตะอีกครั้งเพื่อลบ";setTimeout(()=>{$("vwDel").textContent="ลบ";},3000);return;}
+  delArm=0;$("vwDel").textContent="ลบ";
+  const list=developed(),i=list.findIndex(x=>x.id===vwId);
+  await DB.del(vwId);shots=shots.filter(x=>x.id!==vwId);refreshGalleryButton();renderAlbum();
+  const n=developed()[Math.min(i,developed().length-1)];if(n)openViewer(n.id);else $("viewer").hidden=true;
+});
+let dlPromise=null;
+function getDownloads(){
+  if(!dlPromise){dlPromise=(window.claude&&typeof window.claude.use==="function")?window.claude.use("downloads").catch(()=>null):Promise.resolve(null);dlPromise.then(v=>{if(!v)dlPromise=null;});}
+  return dlPromise;
+}
+getDownloads();
+$("vwSave").addEventListener("click",async()=>{
+  const s=shots.find(x=>x.id===vwId);if(!s)return;
+  const d=new Date(s.taken),name=s.cam+"-"+s.film+"-"+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"-"+pad(d.getHours())+pad(d.getMinutes())+pad(d.getSeconds())+".jpg";
+  const dl=await getDownloads();
+  if(!dl){toast("กดค้างที่รูปแล้วเลือก “บันทึกรูปภาพ”",3500);return;}
+  try{await dl.save({filename:name,data:s.blob});toast("บันทึกรูปแล้ว");}
+  catch(err){const code=err&&err.code;
+    if(code==="declined")toast("ยกเลิกการบันทึกแล้ว");else if(code==="rate_limited")toast("รอสักครู่แล้วลองอีกครั้ง");else toast("กดค้างที่รูปแล้วเลือก “บันทึกรูปภาพ”",3500);}
+});
+
+/* ================= Start ================= */
+(async function start(){
+  buildPresets();syncHeader();syncSliders();
+  requestAnimationFrame(()=>centerPreset(false));
+  setPreviewSource(makeSample(),true);
+  await DB.open();
+  shots=(await DB.all()).sort((a,b)=>b.taken-a.taken);
+  refreshGalleryButton();
+  let granted=false;
+  try{if(navigator.permissions&&navigator.permissions.query){const p=await navigator.permissions.query({name:"camera"});granted=p.state==="granted";}}catch(e){}
+  if(granted)startLive();
+  else if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){$("liveStart").hidden=false;$("flipBtn").hidden=true;}
+  else liveUnavailable();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{drawOverlay();schedule();});
+})();
+})();
+</script>
+</body>
+</html>
